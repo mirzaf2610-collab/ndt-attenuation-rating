@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
   const fields = {};
-  ['threshold_a', 'threshold_b1', 'threshold_b2', 'threshold_justify', 'name'].forEach((k) => {
+  ['threshold_a', 'threshold_b1', 'threshold_b2', 'threshold_justify', 'name', 'report_meta'].forEach((k) => {
     if (req.body[k] !== undefined) fields[k] = req.body[k];
   });
 
