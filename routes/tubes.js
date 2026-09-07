@@ -122,9 +122,21 @@ router.get('/visual', async (req, res) => {
 
   // Every tube's own raw scan is stretched/compressed to fill the full column
   // height — a shorter scan gets stretched to fit, a longer one gets compressed.
+  // Trims the trailing run of invalid/no-signal ("---") points so the
+  // stretch below maps only the actually-measured extent of the tube to
+  // the full column height — untested tail doesn't eat into the column.
+  function measuredLength(values) {
+    let end = values.length;
+    while (end > 0 && (values[end - 1] === null || values[end - 1] === undefined || isNaN(values[end - 1]))) {
+      end--;
+    }
+    return end;
+  }
+
   function downsample(values) {
     if (!values || values.length === 0) return null;
-    const n = values.length;
+    const n = measuredLength(values);
+    if (n === 0) return null;
     const out = new Array(buckets).fill(null);
     for (let i = 0; i < buckets; i++) {
       const start = Math.floor((i / buckets) * n);
