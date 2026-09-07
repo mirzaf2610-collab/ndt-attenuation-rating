@@ -73,6 +73,11 @@
   .visual-columns{display:flex;gap:4px;align-items:flex-end;}
   .visual-col{display:flex;flex-direction:column;align-items:center;width:20px;flex-shrink:0;}
   .visual-col .tube-no{font-size:9.5px;color:var(--muted);margin-bottom:3px;writing-mode:vertical-rl;transform:rotate(180deg);height:16px;}
+  .tube1-dir-marker{display:none;}
+  .visual-dir-row{display:flex;justify-content:space-between;padding:8px 10px 0;}
+  .visual-dir-arrow{text-align:center;}
+  .visual-dir-arrow .lbl{font-size:11px;color:var(--muted);margin-bottom:2px;}
+  .visual-dir-arrow .arrow{color:#d13c3c;font-size:18px;font-weight:700;line-height:1;}
   .visual-col canvas{border-radius:2px;display:block;}
   .visual-col .tube-rating{margin-top:4px;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;}
   .visual-legend{display:flex;align-items:stretch;gap:6px;flex-shrink:0;padding-top:14px;}
@@ -174,6 +179,7 @@
             <button class="btn secondary" id="confirmRiserBtn" style="margin-bottom:1px;">Konfirmasi</button>
           </div>
         </div>
+        <div class="tabs" id="tableSideTabs" style="margin-bottom:14px;"></div>
         <div class="stat-cards" id="statCards"></div>
         <div class="table-wrap"><table id="detailTable"></table></div>
       </div>
@@ -182,7 +188,10 @@
         <h2><span class="step">4</span>Visualisasi Hasil Pemeriksaan Tube</h2>
         <div class="tabs" id="sideTabs" style="margin-bottom:14px;"></div>
         <div class="visual-wrap">
-          <div class="visual-scroll" id="visualScroll"></div>
+          <div style="flex:1;min-width:0;">
+            <div class="visual-scroll" id="visualScroll"></div>
+            <div class="visual-dir-row" id="visualDirRow"></div>
+          </div>
           <div class="visual-legend">
             <canvas id="legendCanvas" width="26" height="330"></canvas>
             <div class="visual-legend-labels">
@@ -191,7 +200,6 @@
             </div>
           </div>
         </div>
-        <div class="summary-note" id="visualNote"></div>
       </div>
 
       <div class="card">
@@ -217,6 +225,15 @@
   let rows = []; // [{id, label, total_tubes}]
   let activeRowId = null;
   let activeSide = 'N';
+  let tableSide = 'both'; // 'N' | 'S' | 'both' — filter for the Result Table
+
+  const RATING_RANK = { A: 4, B1: 3, B2: 2, C: 1 }; // higher = better condition
+  function worseRating(r1, r2) {
+    const valid = [r1, r2].filter(r => RATING_RANK[r] !== undefined);
+    if (valid.length === 0) return 'NT';
+    if (valid.length === 1) return valid[0];
+    return RATING_RANK[valid[0]] <= RATING_RANK[valid[1]] ? valid[0] : valid[1];
+  }
 
   // ---------- Compass helpers ----------
   // DB side codes ('N'/'S') are just abstract "first/second scan side" —
@@ -484,30 +501,116 @@
   }
 
   async function renderDetail() {
+    const activeRowObj = rows.find(r => r.id === activeRowId);
+    const tube1Dir = activeRowObj ? (activeRowObj.tube1_direction || 'W') : 'W';
+
+    // ---- side filter tabs ----
+    const tableSideTabsEl = document.getElementById('tableSideTabs');
+    tableSideTabsEl.innerHTML = '';
+    [['N', DIR_LABEL_ID[sideActualDir(tube1Dir, 'N')]], ['S', DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')]], ['both', 'Keduanya']].forEach(([val, label]) => {
+      const tab = document.createElement('div');
+      tab.className = 'tab' + (tableSide === val ? ' active' : '');
+      tab.textContent = label;
+      tab.addEventListener('click', async () => { tableSide = val; await renderDetail(); });
+      tableSideTabsEl.appendChild(tab);
+    });
+
     const tubes = await api('/tubes?row_id=' + activeRowId);
-    const counts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
-    tubes.forEach(t => { counts[t.rating] = (counts[t.rating] || 0) + 1; });
+
+    if (tableSide !== 'both') {
+      // Single side: one row per tube (that side), riser always shown.
+      const rowsToShow = tubes.filter(t => t.is_riser || t.side === tableSide);
+      const counts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
+      rowsToShow.forEach(t => { counts[t.rating] = (counts[t.rating] || 0) + 1; });
+
+      document.getElementById('statCards').innerHTML = `
+        <div class="stat"><div class="num">${rowsToShow.length}</div><div class="lbl">Total Tube</div></div>
+        <div class="stat"><div class="num" style="color:var(--rA)">${counts.A}</div><div class="lbl">Rating A</div></div>
+        <div class="stat"><div class="num" style="color:var(--rB1)">${counts.B1}</div><div class="lbl">Rating B1</div></div>
+        <div class="stat"><div class="num" style="color:var(--rB2)">${counts.B2}</div><div class="lbl">Rating B2</div></div>
+        <div class="stat"><div class="num" style="color:var(--rC)">${counts.C}</div><div class="lbl">Rating C</div></div>
+        <div class="stat"><div class="num" style="color:var(--rNT)">${counts.NT}</div><div class="lbl">NT</div></div>
+      `;
+
+      let html = `<thead><tr><th>Tube No</th><th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th></tr></thead><tbody>`;
+      rowsToShow.forEach(t => {
+        html += `<tr>
+          <td>${t.is_riser ? '<b>R</b>' : t.tube_no}</td>
+          <td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td>
+          <td style="text-align:center;">${ratingPill(t.rating)}</td>
+        </tr>`;
+      });
+      html += '</tbody>';
+      document.getElementById('detailTable').innerHTML = html;
+      return;
+    }
+
+    // Both sides: one row per tube, Utara + Selatan side by side, plus Rating Total.
+    const riser = tubes.find(t => t.is_riser);
+    const byNo = {};
+    tubes.filter(t => !t.is_riser).forEach(t => {
+      if (!byNo[t.tube_no]) byNo[t.tube_no] = {};
+      byNo[t.tube_no][t.side] = t;
+    });
+    const tubeNos = Object.keys(byNo).map(Number).sort((a, b) => a - b);
+
+    const totalCounts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
+    tubeNos.forEach(no => {
+      const total = worseRating(byNo[no].N ? byNo[no].N.rating : 'NT', byNo[no].S ? byNo[no].S.rating : 'NT');
+      totalCounts[total] = (totalCounts[total] || 0) + 1;
+    });
+    if (riser) totalCounts[riser.rating] = (totalCounts[riser.rating] || 0) + 1;
+    const totalRows = tubeNos.length + (riser ? 1 : 0);
 
     document.getElementById('statCards').innerHTML = `
-      <div class="stat"><div class="num">${tubes.length}</div><div class="lbl">Total Tube</div></div>
-      <div class="stat"><div class="num" style="color:var(--rA)">${counts.A}</div><div class="lbl">Rating A</div></div>
-      <div class="stat"><div class="num" style="color:var(--rB1)">${counts.B1}</div><div class="lbl">Rating B1</div></div>
-      <div class="stat"><div class="num" style="color:var(--rB2)">${counts.B2}</div><div class="lbl">Rating B2</div></div>
-      <div class="stat"><div class="num" style="color:var(--rC)">${counts.C}</div><div class="lbl">Rating C</div></div>
-      <div class="stat"><div class="num" style="color:var(--rNT)">${counts.NT}</div><div class="lbl">NT</div></div>
+      <div class="stat"><div class="num">${totalRows}</div><div class="lbl">Total Tube</div></div>
+      <div class="stat"><div class="num" style="color:var(--rA)">${totalCounts.A}</div><div class="lbl">Rating A</div></div>
+      <div class="stat"><div class="num" style="color:var(--rB1)">${totalCounts.B1}</div><div class="lbl">Rating B1</div></div>
+      <div class="stat"><div class="num" style="color:var(--rB2)">${totalCounts.B2}</div><div class="lbl">Rating B2</div></div>
+      <div class="stat"><div class="num" style="color:var(--rC)">${totalCounts.C}</div><div class="lbl">Rating C</div></div>
+      <div class="stat"><div class="num" style="color:var(--rNT)">${totalCounts.NT}</div><div class="lbl">NT</div></div>
     `;
 
-    let html = `<thead><tr><th>Tube No</th><th>Sisi</th><th>File</th><th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th></tr></thead><tbody>`;
-    tubes.forEach(t => {
-      const sideLabel = t.is_riser ? '-' : (t.side === 'S' ? 'Selatan' : 'Utara');
+    const uLabel = DIR_LABEL_ID[sideActualDir(tube1Dir, 'N')];
+    const sLabel = DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')];
+    let html = `<thead><tr>
+      <th>Tube No</th>
+      <th colspan="5" style="text-align:center;">${escapeHtml(uLabel)}</th>
+      <th colspan="5" style="text-align:center;">${escapeHtml(sLabel)}</th>
+      <th style="text-align:center;">Rating Total</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th>
+      <th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th>
+      <th></th>
+    </tr></thead><tbody>`;
+
+    function sideCells(t) {
+      if (!t) return `<td>NT</td><td>NT</td><td>NT</td><td>NT</td><td style="text-align:center;">${ratingPill('NT')}</td>`;
+      return `<td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td><td style="text-align:center;">${ratingPill(t.rating)}</td>`;
+    }
+
+    tubeNos.forEach(no => {
+      const n = byNo[no].N, s = byNo[no].S;
+      const total = worseRating(n ? n.rating : 'NT', s ? s.rating : 'NT');
       html += `<tr>
-        <td>${t.is_riser ? '<b>R</b>' : t.tube_no}</td>
-        <td style="text-align:left;font-size:11.5px;color:var(--muted);">${sideLabel}</td>
-        <td style="text-align:left;font-size:11.5px;color:var(--muted);">${escapeHtml(t.file_name || (t.is_placeholder ? 'belum di-upload' : ''))}</td>
-        <td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td>
-        <td style="text-align:center;">${ratingPill(t.rating)}</td>
+        <td>${no}</td>
+        ${sideCells(n)}
+        ${sideCells(s)}
+        <td style="text-align:center;">${ratingPill(total)}</td>
       </tr>`;
     });
+
+    if (riser) {
+      html += `<tr>
+        <td><b>R</b></td>
+        <td colspan="5" style="text-align:center;color:var(--muted);font-size:11.5px;">satu sisi saja</td>
+        ${sideCells(riser)}
+        <td style="text-align:center;">${ratingPill(riser.rating)}</td>
+      </tr>`;
+    }
+
     html += '</tbody>';
     document.getElementById('detailTable').innerHTML = html;
   }
@@ -661,10 +764,10 @@
     const oppositeLabel = DIR_LABEL_ID[DEG_DIR[addDeg(DIR_DEG[tube1Dir], 180)]];
     const leftLabel = reverseOrder ? oppositeLabel : tube1Label;
     const rightLabel = reverseOrder ? tube1Label : oppositeLabel;
-    document.getElementById('visualNote').textContent =
-      'Tiap kolom = 1 tube, warna mengikuti persentase ketinggian amplitudo di sepanjang tube (skala sama seperti OmniScan MX2). ' +
-      'Kolom abu-abu = NT (belum di-upload). Tube No. 1 = ujung ' + tube1Label + '. ' +
-      'Dilihat dari sisi ' + DIR_LABEL_ID[viewingActualDir] + ': ' + leftLabel + ' di kiri \u2192 ' + rightLabel + ' di kanan.';
+    document.getElementById('visualDirRow').innerHTML = `
+      <div class="visual-dir-arrow"><div class="lbl">${escapeHtml(leftLabel)}</div><div class="arrow">&larr;</div></div>
+      <div class="visual-dir-arrow"><div class="lbl">${escapeHtml(rightLabel)}</div><div class="arrow">&rarr;</div></div>
+    `;
   }
 
   async function renderSummary() {
