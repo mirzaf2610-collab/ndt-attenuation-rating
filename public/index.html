@@ -240,20 +240,59 @@
 
       <div class="card">
         <h2><span class="step">7</span>Generate Report</h2>
-        <div class="grid-settings">
-          <div class="field"><label>Judul Laporan</label><input type="text" id="rptTitle" placeholder="misal: NON-DESTRUCTIVE EXAMINATION REPORT"></div>
+        <div class="summary-note" style="font-weight:600;margin-top:0;">Header Laporan (tampil di tiap halaman isi)</div>
+        <div class="field" style="max-width:260px;">
+          <label>Logo Perusahaan</label>
+          <div id="logoPreviewWrap" style="display:none;align-items:center;gap:10px;margin-bottom:8px;">
+            <img id="logoPreview" style="height:50px;border:1px solid var(--line);border-radius:6px;">
+            <button class="btn secondary" id="removeLogoBtn" type="button" style="padding:5px 12px;font-size:12px;">Hapus Logo</button>
+          </div>
+          <input type="file" id="logoInput" accept="image/*">
+        </div>
+        <div class="grid-settings" style="margin-top:14px;">
+          <div class="field"><label>Nama Perusahaan/Pabrik</label><input type="text" id="rptCompany" placeholder="misal: PUSRI"></div>
+          <div class="field"><label>Departemen</label><input type="text" id="rptDept" placeholder="misal: DEPARTEMEN INSPEKSI TEKNIK II"></div>
+          <div class="field"><label>Kelompok</label><input type="text" id="rptGroup" placeholder="misal: KELOMPOK INSPEKSI TEKNIK KHUSUS"></div>
+        </div>
+        <div class="grid-settings" style="margin-top:14px;">
+          <div class="field"><label>Judul Laporan</label><input type="text" id="rptTitle" placeholder="misal: FINAL REPORT"></div>
+          <div class="field"><label>Sub-judul</label><input type="text" id="rptSubtitle" placeholder="misal: PEMERIKSAAN ULTRASONIC ATENUASI"></div>
+          <div class="field"><label>Nama Proyek</label><input type="text" id="rptProject" placeholder="misal: TA-PUSRI IIB 2026"></div>
+        </div>
+        <div class="grid-settings" style="margin-top:14px;">
           <div class="field"><label>No. Laporan</label><input type="text" id="rptNo" placeholder="misal: 01/UAM/IV-IT2/2026"></div>
           <div class="field"><label>Tanggal</label><input type="text" id="rptDate" placeholder="misal: September 2026"></div>
         </div>
         <div class="field" style="margin-top:14px;"><label>Distribusi (satu baris per tujuan)</label><textarea id="rptDistribusi" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
-        <div class="field" style="margin-top:14px;"><label>Latar Belakang</label><textarea id="rptLatar" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+
+        <div class="summary-note" style="font-weight:600;margin-top:20px;">Narasi Laporan</div>
+        <div class="field" style="margin-top:10px;"><label>Latar Belakang</label><textarea id="rptLatar" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
         <div class="field" style="margin-top:14px;"><label>Metode Pemeriksaan</label><textarea id="rptMetode" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
-        <div class="field" style="margin-top:14px;"><label>Kesimpulan</label><textarea id="rptKesimpulan" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+
+        <div class="summary-note" style="font-weight:600;margin-top:20px;">Data dan Spesifikasi Alat yang Diperiksa</div>
+        <div class="grid-settings" style="margin-top:10px;">
+          <div class="field"><label>Tube Material</label><input type="text" id="rptTubeMaterial" placeholder="misal: Manaurite XM"></div>
+          <div class="field"><label>ID / OD</label><input type="text" id="rptTubeIdOd" placeholder="misal: 127 mm / 145 mm"></div>
+          <div class="field"><label>Thickness</label><input type="text" id="rptTubeThickness" placeholder="misal: 9 mm"></div>
+          <div class="field"><label>Length</label><input type="text" id="rptTubeLength" placeholder="misal: 10570 mm"></div>
+          <div class="field"><label>Tube Qty</label><input type="text" id="rptTubeQty" placeholder="misal: 288 ea / 48 tube x 6 rows"></div>
+        </div>
+
+        <div class="summary-note" style="font-weight:600;margin-top:20px;">Kesimpulan &amp; Saran</div>
+        <div class="field" style="margin-top:10px;"><label>Kesimpulan</label><textarea id="rptKesimpulan" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
         <div class="field" style="margin-top:14px;"><label>Saran</label><textarea id="rptSaran" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
         <div class="btn-row"><button class="btn secondary" id="saveReportMetaBtn">Simpan Draft</button></div>
 
-        <div class="summary-note" style="margin-top:18px;font-weight:600;">Gambar tube layout yang akan disertakan:</div>
+        <div class="summary-note" style="margin-top:22px;font-weight:600;">Gambar Tube Display Condition (lampiran, halaman landscape di akhir laporan)</div>
         <div id="reportImagesList" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+
+        <div class="summary-note" style="margin-top:22px;font-weight:600;">Dokumentasi Pemeriksaan (foto — kalibrasi, pemeriksaan, dsb)</div>
+        <div class="dropzone" id="docPhotoDropzone" style="margin-top:8px;">
+          <div><strong>Klik untuk pilih foto</strong> atau drag &amp; drop (bisa banyak sekaligus)</div>
+        </div>
+        <input type="file" id="docPhotoInput" accept="image/*" multiple style="display:none;">
+        <div id="docPhotosList" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+
         <div class="btn-row"><button class="btn" id="generatePdfBtn">Generate PDF</button></div>
       </div>
     </div>
@@ -281,6 +320,8 @@
   let editingRowLabel = null; // which row's values are loaded into the Setup form
   let isoVisible = false;
   let reportImages = []; // [{label, dataUrl}] — captured tube-layout images for the PDF
+  let docPhotos = []; // [{name, dataUrl}] — Dokumentasi Pemeriksaan photos
+  let logoDataUrl = null; // company/plant logo for the report header (persisted per plant)
   let lastVisualData = null; // cached render data, reused when toggling isometric view
 
   const RATING_RANK = { A: 4, B1: 3, B2: 2, C: 1 }; // higher = better condition
@@ -384,16 +425,30 @@
     document.getElementById('thJustify').value = currentPlant.threshold_justify;
 
     const rm = currentPlant.report_meta || {};
+    logoDataUrl = rm.logo || null;
+    renderLogoPreview();
+    document.getElementById('rptCompany').value = rm.company || '';
+    document.getElementById('rptDept').value = rm.dept || '';
+    document.getElementById('rptGroup').value = rm.group || '';
     document.getElementById('rptTitle').value = rm.title || '';
+    document.getElementById('rptSubtitle').value = rm.subtitle || '';
+    document.getElementById('rptProject').value = rm.project || '';
     document.getElementById('rptNo').value = rm.reportNo || '';
     document.getElementById('rptDate').value = rm.date || '';
     document.getElementById('rptDistribusi').value = rm.distribusi || '';
     document.getElementById('rptLatar').value = rm.latar || '';
     document.getElementById('rptMetode').value = rm.metode || '';
+    document.getElementById('rptTubeMaterial').value = rm.tubeMaterial || '';
+    document.getElementById('rptTubeIdOd').value = rm.tubeIdOd || '';
+    document.getElementById('rptTubeThickness').value = rm.tubeThickness || '';
+    document.getElementById('rptTubeLength').value = rm.tubeLength || '';
+    document.getElementById('rptTubeQty').value = rm.tubeQty || '';
     document.getElementById('rptKesimpulan').value = rm.kesimpulan || '';
     document.getElementById('rptSaran').value = rm.saran || '';
     reportImages = [];
+    docPhotos = [];
     renderReportImagesList();
+    renderDocPhotosList();
 
     rows = await api('/rows?plant_id=' + id);
     activeRowId = rows.length ? rows[0].id : null;
@@ -861,10 +916,9 @@
     if (isoVisible) buildIsoScene();
   });
 
-  function drawDonut(counts, total) {
-    const canvas = document.getElementById('donutCanvas');
+  function drawDonutOnCanvas(canvas, counts, total) {
     const ctx = canvas.getContext('2d');
-    const cx = canvas.width / 2, cy = canvas.height / 2, rOuter = 80, rInner = 46;
+    const cx = canvas.width / 2, cy = canvas.height / 2, rOuter = canvas.width * 0.44, rInner = canvas.width * 0.255;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (total === 0) {
       ctx.fillStyle = '#c7cdd6';
@@ -893,13 +947,25 @@
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#1b2733';
-    ctx.font = 'bold 15px sans-serif';
+    ctx.font = 'bold ' + Math.round(canvas.width * 0.083) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(total, cx, cy - 6);
-    ctx.font = '10px sans-serif';
+    ctx.fillText(total, cx, cy - canvas.width * 0.033);
+    ctx.font = Math.round(canvas.width * 0.055) + 'px sans-serif';
     ctx.fillStyle = '#6b7686';
-    ctx.fillText('tube', cx, cy + 10);
+    ctx.fillText('tube', cx, cy + canvas.width * 0.055);
+  }
+
+  function renderDonutToDataUrl(counts, total, size) {
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    drawDonutOnCanvas(canvas, counts, total);
+    return canvas.toDataURL('image/png');
+  }
+
+  function drawDonut(counts, total) {
+    const canvas = document.getElementById('donutCanvas');
+    drawDonutOnCanvas(canvas, counts, total);
   }
 
   function renderDonutLegend(counts, total) {
@@ -1046,14 +1112,94 @@
     });
   });
 
+  // ---- Dokumentasi Pemeriksaan photo upload ----
+  const docPhotoDropzone = document.getElementById('docPhotoDropzone');
+  const docPhotoInput = document.getElementById('docPhotoInput');
+  docPhotoDropzone.addEventListener('click', () => docPhotoInput.click());
+  ['dragenter','dragover'].forEach(evt => docPhotoDropzone.addEventListener(evt, e => { e.preventDefault(); docPhotoDropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(evt => docPhotoDropzone.addEventListener(evt, e => { e.preventDefault(); docPhotoDropzone.classList.remove('drag'); }));
+  docPhotoDropzone.addEventListener('drop', e => handleDocPhotos(e.dataTransfer.files));
+  docPhotoInput.addEventListener('change', e => handleDocPhotos(e.target.files));
+
+  function handleDocPhotos(fileList) {
+    Array.from(fileList || []).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        docPhotos.push({ name: file.name, dataUrl: e.target.result });
+        renderDocPhotosList();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderDocPhotosList() {
+    const el = document.getElementById('docPhotosList');
+    if (docPhotos.length === 0) {
+      el.innerHTML = '<div class="summary-note">Belum ada foto.</div>';
+      return;
+    }
+    el.innerHTML = docPhotos.map((p, i) => `
+      <div class="report-img-item">
+        <img src="${p.dataUrl}">
+        <div class="name">${escapeHtml(p.name)}</div>
+        <button data-i="${i}" class="removeDocPhotoBtn">Hapus</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.removeDocPhotoBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        docPhotos.splice(parseInt(btn.getAttribute('data-i'), 10), 1);
+        renderDocPhotosList();
+      });
+    });
+  }
+
+  // ---- Logo upload ----
+  function renderLogoPreview() {
+    const wrap = document.getElementById('logoPreviewWrap');
+    const img = document.getElementById('logoPreview');
+    if (logoDataUrl) {
+      wrap.style.display = 'flex';
+      img.src = logoDataUrl;
+    } else {
+      wrap.style.display = 'none';
+      img.src = '';
+    }
+  }
+  document.getElementById('logoInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      logoDataUrl = ev.target.result;
+      renderLogoPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('removeLogoBtn').addEventListener('click', () => {
+    logoDataUrl = null;
+    document.getElementById('logoInput').value = '';
+    renderLogoPreview();
+  });
+
   function collectReportMeta() {
     return {
+      logo: logoDataUrl,
+      company: document.getElementById('rptCompany').value,
+      dept: document.getElementById('rptDept').value,
+      group: document.getElementById('rptGroup').value,
       title: document.getElementById('rptTitle').value,
+      subtitle: document.getElementById('rptSubtitle').value,
+      project: document.getElementById('rptProject').value,
       reportNo: document.getElementById('rptNo').value,
       date: document.getElementById('rptDate').value,
       distribusi: document.getElementById('rptDistribusi').value,
       latar: document.getElementById('rptLatar').value,
       metode: document.getElementById('rptMetode').value,
+      tubeMaterial: document.getElementById('rptTubeMaterial').value,
+      tubeIdOd: document.getElementById('rptTubeIdOd').value,
+      tubeThickness: document.getElementById('rptTubeThickness').value,
+      tubeLength: document.getElementById('rptTubeLength').value,
+      tubeQty: document.getElementById('rptTubeQty').value,
       kesimpulan: document.getElementById('rptKesimpulan').value,
       saran: document.getElementById('rptSaran').value,
     };
@@ -1079,27 +1225,78 @@
       const meta = collectReportMeta();
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
+      let pageW = doc.internal.pageSize.getWidth();
+      let pageH = doc.internal.pageSize.getHeight();
       const margin = 50;
       let y;
 
-      function addWrappedText(text, x, startY, maxWidth, lineHeight) {
+      function addJustified(text, x, startY, maxWidth, lineHeight) {
         const lines = doc.splitTextToSize(text || '-', maxWidth);
-        doc.text(lines, x, startY);
+        lines.forEach((line, i) => {
+          const isLast = i === lines.length - 1;
+          doc.text(line, x, startY + i * lineHeight, isLast ? {} : { maxWidth, align: 'justify' });
+        });
         return startY + lines.length * lineHeight;
       }
 
-      // ---- Page 1: Cover ----
+      // Header block on every content page (not cover, not appendix pages).
+      function addPageHeader() {
+        const top = 30, boxH = 66;
+        const colA = margin + 100;              // company/logo column width
+        const colC = pageW - margin - 170;       // start of right (dept/report-no) column
+        doc.setDrawColor(20, 30, 50);
+        doc.setLineWidth(1);
+        doc.rect(margin, top, pageW - margin * 2, boxH);
+        doc.line(colA, top, colA, top + boxH);
+        doc.line(colC, top, colC, top + boxH);
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+        if (meta.logo) {
+          try {
+            const props = doc.getImageProperties(meta.logo);
+            const maxW = colA - margin - 12, maxH = boxH - 20;
+            let lw = maxW, lh = lw * (props.height / props.width);
+            if (lh > maxH) { lh = maxH; lw = lh * (props.width / props.height); }
+            doc.addImage(meta.logo, margin + (colA - margin - lw) / 2, top + (boxH - lh) / 2 - 7, lw, lh);
+            doc.setFontSize(7.5);
+            doc.text(meta.company || '-', margin + (colA - margin) / 2, top + boxH - 8, { align: 'center' });
+          } catch (e) {
+            doc.text(meta.company || '-', margin + (colA - margin) / 2, top + boxH / 2, { align: 'center' });
+          }
+        } else {
+          doc.text(meta.company || '-', margin + (colA - margin) / 2, top + boxH / 2, { align: 'center' });
+        }
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+        doc.text(meta.title || 'FINAL REPORT', (colA + colC) / 2, top + 22, { align: 'center' });
+        doc.setFontSize(9.5);
+        doc.text(meta.subtitle || '-', (colA + colC) / 2, top + 38, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+        doc.text(meta.project || '-', (colA + colC) / 2, top + 52, { align: 'center' });
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+        doc.text(meta.dept || '-', colC + 6, top + 16, { maxWidth: pageW - margin - colC - 10 });
+        doc.text(meta.group || '-', colC + 6, top + 28, { maxWidth: pageW - margin - colC - 10 });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        doc.text('Report No: ' + (meta.reportNo || '-'), colC + 6, top + 44);
+        doc.text('Date: ' + (meta.date || '-'), colC + 6, top + 56);
+
+        return top + boxH + 24; // y position where page content should start
+      }
+
+      // ---- Page 1: Cover (no header) ----
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text(meta.title || 'NON-DESTRUCTIVE EXAMINATION REPORT', pageW / 2, 160, { align: 'center' });
+      doc.setFontSize(20);
+      doc.text(meta.title || 'FINAL REPORT', pageW / 2, 150, { align: 'center' });
+      doc.setFontSize(14);
+      doc.text(meta.subtitle || '', pageW / 2, 175, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(12);
+      doc.text(meta.project || '', pageW / 2, 198, { align: 'center' });
       doc.setFontSize(13);
-      doc.setFont('helvetica', 'normal');
-      doc.text(currentPlant.name, pageW / 2, 190, { align: 'center' });
+      doc.text(currentPlant.name, pageW / 2, 230, { align: 'center' });
 
       doc.setFontSize(10);
-      y = 260;
+      y = 300;
       doc.text('Report No.', margin, y); doc.text(':  ' + (meta.reportNo || '-'), margin + 90, y);
       y += 16;
       doc.text('Tanggal', margin, y); doc.text(':  ' + (meta.date || '-'), margin + 90, y);
@@ -1111,59 +1308,160 @@
         y += 14;
       });
 
-      // ---- Page 2: Latar Belakang & Metode ----
+      // ---- Page: Latar Belakang & Metode ----
       doc.addPage();
-      y = margin;
+      y = addPageHeader();
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
       doc.text('1. Latar Belakang', margin, y); y += 18;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
-      y = addWrappedText(meta.latar, margin, y, pageW - margin * 2, 14);
+      y = addJustified(meta.latar, margin, y, pageW - margin * 2, 14);
 
       y += 20;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
       doc.text('2. Metode Pemeriksaan', margin, y); y += 18;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
-      y = addWrappedText(meta.metode, margin, y, pageW - margin * 2, 14);
+      y = addJustified(meta.metode, margin, y, pageW - margin * 2, 14);
 
-      // ---- Page 3: Rekapitulasi (captured as image) ----
+      // ---- Page: Data dan Spesifikasi Alat ----
       doc.addPage();
-      y = margin;
+      y = addPageHeader();
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-      doc.text('3. Rekapitulasi Hasil Pemeriksaan', margin, y);
+      doc.text('3. Data dan Spesifikasi Alat yang Diperiksa', margin, y); y += 22;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+      const specRows = [
+        ['a. Tube Material', meta.tubeMaterial],
+        ['b. ID / OD', meta.tubeIdOd],
+        ['c. Thickness', meta.tubeThickness],
+        ['d. Length', meta.tubeLength],
+        ['e. Tube Qty', meta.tubeQty],
+      ];
+      specRows.forEach(([label, val]) => {
+        doc.text(label, margin + 15, y);
+        doc.text(':  ' + (val || '-'), margin + 150, y);
+        y += 18;
+      });
+
+      // ---- Page: Rekapitulasi + diagram ----
+      doc.addPage();
+      y = addPageHeader();
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('4. Rekapitulasi Hasil Pemeriksaan', margin, y);
       y += 16;
+      const summaryData = await api('/summary?plant_id=' + currentPlant.id);
       const summaryCanvas = await html2canvas(document.getElementById('summaryTable'), { backgroundColor: '#ffffff', scale: 2 });
       const sImg = summaryCanvas.toDataURL('image/png');
       const sRatio = summaryCanvas.height / summaryCanvas.width;
       const sW = pageW - margin * 2;
-      const sH = sW * sRatio;
-      doc.addImage(sImg, 'PNG', margin, y, sW, Math.min(sH, pageH - y - margin));
+      const sH = Math.min(sW * sRatio, 220);
+      doc.addImage(sImg, 'PNG', margin, y, sW, sH);
+      y += sH + 24;
 
-      // ---- Lampiran: tube layout images ----
-      reportImages.forEach(img => {
-        doc.addPage();
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-        doc.text('Lampiran - ' + img.label, margin, margin);
-        const props = doc.getImageProperties(img.dataUrl);
-        const ratio = props.height / props.width;
-        const w = pageW - margin * 2;
-        const h = Math.min(w * ratio, pageH - margin * 2 - 20);
-        const finalW = h === (pageH - margin * 2 - 20) ? h / ratio : w;
-        doc.addImage(img.dataUrl, 'PNG', margin, margin + 20, finalW, finalW * ratio);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      doc.text('Distribusi Rating Keseluruhan', margin, y);
+      y += 10;
+      const overallCounts = {};
+      let overallTotal = 0;
+      summaryData.result.forEach(r => { overallCounts[r.rating] = r.total; if (r.rating !== 'NT') overallTotal += r.total; else overallTotal += r.total; });
+      const donutUrl = renderDonutToDataUrl(overallCounts, summaryData.totalTubes, 240);
+      doc.addImage(donutUrl, 'PNG', margin, y, 130, 130);
+      let ly = y + 20;
+      ['A', 'B1', 'B2', 'C', 'NT'].forEach(r => {
+        const val = overallCounts[r] || 0;
+        const pct = summaryData.totalTubes ? (val / summaryData.totalTubes * 100).toFixed(1) : '0.0';
+        doc.setFillColor(ratingColors[r]);
+        doc.rect(margin + 150, ly - 8, 8, 8, 'F');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+        doc.text(r + ' : ' + val + ' tube (' + pct + '%)', margin + 165, ly);
+        ly += 16;
       });
 
-      // ---- Last page: Kesimpulan & Saran ----
+      // ---- Page(s): Result Table per Row ----
+      const originalRowId = activeRowId;
+      for (const row of rows) {
+        activeRowId = row.id;
+        await renderDetail();
+        const rowCanvas = await html2canvas(document.getElementById('detailTable'), { backgroundColor: '#ffffff', scale: 2 });
+        doc.addPage();
+        y = addPageHeader();
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+        doc.text('5. Result Table - Row ' + row.label, margin, y);
+        y += 16;
+        const rImg = rowCanvas.toDataURL('image/png');
+        const rRatio = rowCanvas.height / rowCanvas.width;
+        const rW = pageW - margin * 2;
+        const rH = Math.min(rW * rRatio, pageH - y - margin);
+        doc.addImage(rImg, 'PNG', margin, y, rW, rH);
+      }
+      activeRowId = originalRowId;
+      await renderDetail();
+
+      // ---- Page: Kesimpulan & Saran ----
       doc.addPage();
-      y = margin;
+      y = addPageHeader();
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-      doc.text('Kesimpulan', margin, y); y += 18;
+      doc.text('6. Kesimpulan', margin, y); y += 18;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
-      y = addWrappedText(meta.kesimpulan, margin, y, pageW - margin * 2, 14);
+      y = addJustified(meta.kesimpulan, margin, y, pageW - margin * 2, 14);
 
       y += 20;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-      doc.text('Saran', margin, y); y += 18;
+      doc.text('7. Saran', margin, y); y += 18;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
-      addWrappedText(meta.saran, margin, y, pageW - margin * 2, 14);
+      addJustified(meta.saran, margin, y, pageW - margin * 2, 14);
+
+      // ---- Lampiran: Tube Display Condition (landscape, no header, at the very end) ----
+      reportImages.forEach(img => {
+        doc.addPage('a4', 'landscape');
+        pageW = doc.internal.pageSize.getWidth();
+        pageH = doc.internal.pageSize.getHeight();
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+        doc.text('Lampiran - Tube Display Condition - ' + img.label, margin, margin - 15);
+        const props = doc.getImageProperties(img.dataUrl);
+        const ratio = props.height / props.width;
+        const availW = pageW - margin * 2;
+        const availH = pageH - margin * 2;
+        let w = availW, h = w * ratio;
+        if (h > availH) { h = availH; w = h / ratio; }
+        doc.addImage(img.dataUrl, 'PNG', margin, margin, w, h);
+      });
+
+      // ---- Lampiran: Dokumentasi Pemeriksaan (portrait, no header, photo grid) ----
+      if (docPhotos.length > 0) {
+        doc.addPage('a4', 'portrait');
+        pageW = doc.internal.pageSize.getWidth();
+        pageH = doc.internal.pageSize.getHeight();
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+        doc.text('Dokumentasi Pemeriksaan', pageW / 2, margin, { align: 'center' });
+
+        const cols = 2;
+        const gap = 16;
+        const cellW = (pageW - margin * 2 - gap * (cols - 1)) / cols;
+        const cellH = 150;
+        let gx = margin, gy = margin + 30;
+        docPhotos.forEach((p, i) => {
+          const props = doc.getImageProperties(p.dataUrl);
+          const ratio = props.height / props.width;
+          let w = cellW, h = w * ratio;
+          if (h > cellH) { h = cellH; w = h / ratio; }
+          const offsetX = gx + (cellW - w) / 2;
+          doc.addImage(p.dataUrl, 'PNG', offsetX, gy, w, h);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+          doc.text(p.name, gx + cellW / 2, gy + cellH + 12, { align: 'center', maxWidth: cellW });
+
+          if ((i + 1) % cols === 0) {
+            gx = margin;
+            gy += cellH + 34;
+          } else {
+            gx += cellW + gap;
+          }
+          if (gy > pageH - margin - cellH && (i + 1) < docPhotos.length && (i + 1) % cols === 0) {
+            doc.addPage('a4', 'portrait');
+            pageW = doc.internal.pageSize.getWidth();
+            pageH = doc.internal.pageSize.getHeight();
+            gx = margin; gy = margin;
+          }
+        });
+      }
 
       doc.save('laporan_' + currentPlant.name.replace(/\s+/g, '_') + '.pdf');
     } catch (err) {
