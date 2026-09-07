@@ -44,6 +44,7 @@ router.patch('/:id', async (req, res) => {
   if (req.body.total_tubes !== undefined) fields.total_tubes = req.body.total_tubes;
   if (req.body.has_riser !== undefined) fields.has_riser = req.body.has_riser;
   if (req.body.riser_position !== undefined) fields.riser_position = req.body.riser_position;
+  if (req.body.tube1_direction !== undefined) fields.tube1_direction = req.body.tube1_direction;
   if (Object.keys(fields).length === 0) return res.status(400).json({ error: 'no updatable fields provided' });
 
   const { data, error } = await supabase
