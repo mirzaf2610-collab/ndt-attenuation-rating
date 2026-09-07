@@ -153,6 +153,15 @@
           <label>Jumlah tube di Row ini</label>
           <input type="number" id="rowTotalInput" min="0" step="1">
         </div>
+        <div class="field" style="max-width:220px;margin-bottom:14px;">
+          <label>Arah tube No. 1 (mata angin)</label>
+          <select id="tube1DirInput">
+            <option value="W">Barat</option>
+            <option value="E">Timur</option>
+            <option value="N">Utara</option>
+            <option value="S">Selatan</option>
+          </select>
+        </div>
         <div class="riser-settings">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;">
             <input type="checkbox" id="hasRiserInput"> Row ini punya tube Riser
@@ -182,7 +191,7 @@
             </div>
           </div>
         </div>
-        <div class="summary-note">Tiap kolom = 1 tube, warna mengikuti persentase ketinggian amplitudo di sepanjang tube (skala sama seperti OmniScan MX2). Kolom abu-abu = NT (belum di-upload). Menampilkan data sisi yang dipilih di atas.</div>
+        <div class="summary-note" id="visualNote"></div>
       </div>
 
       <div class="card">
@@ -208,6 +217,23 @@
   let rows = []; // [{id, label, total_tubes}]
   let activeRowId = null;
   let activeSide = 'N';
+
+  // ---------- Compass helpers ----------
+  // DB side codes ('N'/'S') are just abstract "first/second scan side" —
+  // their real-world compass direction depends on which way tube No.1 points
+  // (set per row), since rows can run East-West, North-South, etc.
+  const DIR_DEG = { N: 0, E: 90, S: 180, W: 270 };
+  const DEG_DIR = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
+  const DIR_LABEL_ID = { N: 'Utara', E: 'Timur', S: 'Selatan', W: 'Barat' };
+  function addDeg(deg, delta) { return ((deg + delta) % 360 + 360) % 360; }
+  function sideActualDir(tube1Dir, dbSide) {
+    const offset = dbSide === 'N' ? 90 : 270;
+    return DEG_DIR[addDeg(DIR_DEG[tube1Dir] ?? 270, offset)];
+  }
+  function shouldReverse(tube1Dir, viewingActualDir) {
+    const leftDir = DEG_DIR[addDeg(DIR_DEG[viewingActualDir], 90)];
+    return tube1Dir !== leftDir;
+  }
   let pendingFile = null;
 
   const plantBar = document.getElementById('plantBar');
@@ -444,6 +470,17 @@
       });
       await refreshAll();
     };
+
+    const tube1DirInput = document.getElementById('tube1DirInput');
+    tube1DirInput.value = activeRow ? (activeRow.tube1_direction || 'W') : 'W';
+    tube1DirInput.onchange = async () => {
+      await api('/rows/' + activeRowId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tube1_direction: tube1DirInput.value }),
+      });
+      await refreshAll();
+    };
   }
 
   async function renderDetail() {
@@ -536,15 +573,22 @@
   drawLegend();
 
   async function renderVisual() {
+    const activeRowObj = rows.find(r => r.id === activeRowId);
+    const tube1Dir = activeRowObj ? (activeRowObj.tube1_direction || 'W') : 'W';
+
     const sideTabsEl = document.getElementById('sideTabs');
     sideTabsEl.innerHTML = '';
-    [['N', 'Utara'], ['S', 'Selatan']].forEach(([val, label]) => {
+    ['N', 'S'].forEach((val) => {
+      const label = DIR_LABEL_ID[sideActualDir(tube1Dir, val)];
       const tab = document.createElement('div');
       tab.className = 'tab' + (activeSide === val ? ' active' : '');
       tab.textContent = label;
       tab.addEventListener('click', async () => { activeSide = val; await renderVisual(); });
       sideTabsEl.appendChild(tab);
     });
+
+    const viewingActualDir = sideActualDir(tube1Dir, activeSide);
+    const reverseOrder = shouldReverse(tube1Dir, viewingActualDir);
 
     const data = await api('/tubes/visual?row_id=' + activeRowId + '&buckets=150&side=' + activeSide);
     const scrollEl = document.getElementById('visualScroll');
@@ -557,7 +601,14 @@
     const wrap = document.createElement('div');
     wrap.className = 'visual-columns';
 
-    data.tubes.forEach(t => {
+    // Backend always returns tubes West→East (tube 1 = West). Viewed from the
+    // South (looking north), West is on the viewer's left, so that order is
+    // already correct left-to-right. Viewed from the North (looking south),
+    // West is on the viewer's right — so the whole row (riser included) is
+    // mirrored for that view.
+    const renderList = reverseOrder ? data.tubes.slice().reverse() : data.tubes;
+
+    renderList.forEach(t => {
       const canvasWidth = t.is_riser ? riserCanvasWidth : normalCanvasWidth;
       const colWidth = t.is_riser ? riserColWidth : normalColWidth;
 
@@ -605,6 +656,15 @@
 
     scrollEl.innerHTML = '';
     scrollEl.appendChild(wrap);
+
+    const tube1Label = DIR_LABEL_ID[tube1Dir];
+    const oppositeLabel = DIR_LABEL_ID[DEG_DIR[addDeg(DIR_DEG[tube1Dir], 180)]];
+    const leftLabel = reverseOrder ? oppositeLabel : tube1Label;
+    const rightLabel = reverseOrder ? tube1Label : oppositeLabel;
+    document.getElementById('visualNote').textContent =
+      'Tiap kolom = 1 tube, warna mengikuti persentase ketinggian amplitudo di sepanjang tube (skala sama seperti OmniScan MX2). ' +
+      'Kolom abu-abu = NT (belum di-upload). Tube No. 1 = ujung ' + tube1Label + '. ' +
+      'Dilihat dari sisi ' + DIR_LABEL_ID[viewingActualDir] + ': ' + leftLabel + ' di kiri \u2192 ' + rightLabel + ' di kanan.';
   }
 
   async function renderSummary() {
