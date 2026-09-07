@@ -151,7 +151,7 @@
         <div class="visual-wrap">
           <div class="visual-scroll" id="visualScroll"></div>
           <div class="visual-legend">
-            <canvas id="legendCanvas" width="26" height="240"></canvas>
+            <canvas id="legendCanvas" width="26" height="330"></canvas>
             <div class="visual-legend-labels">
               <span>100</span><span>90</span><span>80</span><span>70</span><span>60</span>
               <span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0 %</span>
@@ -415,18 +415,30 @@
     A: '#1d6fd6', B1: '#1c9e6b', B2: '#d98a12', C: '#d13c3c', NT: '#c7cdd6',
   };
 
-  // Reversed-jet colour scale: 0% red -> ... -> 100% blue, matching the
-  // OmniScan MX2 "% Amplitude" legend (red/orange/yellow/green/cyan/blue).
+  // Colour scale sampled directly from the OmniScan MX2 "% Amplitude" legend
+  // used in the report, so tube visuals match it exactly (not a generic jet scale).
   const colorStops = [
-    [0,   [139, 0, 0]],
-    [12.5,[255, 0, 0]],
-    [25,  [255, 140, 0]],
-    [37.5,[255, 255, 0]],
-    [50,  [0, 200, 0]],
-    [62.5,[0, 220, 220]],
-    [75,  [0, 140, 255]],
-    [87.5,[0, 60, 220]],
-    [100, [0, 0, 139]],
+    [0,   [255, 29, 13]],
+    [5,   [255, 147, 38]],
+    [10,  [255, 195, 48]],
+    [15,  [255, 221, 55]],
+    [20,  [235, 253, 63]],
+    [25,  [178, 253, 62]],
+    [30,  [148, 252, 62]],
+    [35,  [77, 252, 61]],
+    [40,  [10, 252, 61]],
+    [45,  [0, 252, 122]],
+    [50,  [0, 252, 157]],
+    [55,  [0, 252, 188]],
+    [60,  [0, 253, 235]],
+    [65,  [0, 247, 253]],
+    [70,  [0, 196, 251]],
+    [75,  [0, 166, 250]],
+    [80,  [0, 124, 249]],
+    [85,  [0, 77, 249]],
+    [90,  [0, 53, 250]],
+    [95,  [0, 19, 248]],
+    [100, [0, 19, 247]],
   ];
 
   function amplitudeColor(pct) {
@@ -461,7 +473,7 @@
   async function renderVisual() {
     const data = await api('/tubes/visual?row_id=' + activeRowId + '&buckets=150');
     const scrollEl = document.getElementById('visualScroll');
-    const colHeight = 220;
+    const colHeight = 330;
 
     const wrap = document.createElement('div');
     wrap.className = 'visual-columns';
