@@ -9,12 +9,15 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 const RISER_TUBE_NO = 0; // sentinel — riser sits outside the normal 1..N numbering
 
 // POST /api/tubes
-// multipart/form-data: file, row_id, tube_no (or is_riser=true instead of tube_no)
+// multipart/form-data: file, row_id, tube_no (or is_riser=true instead of tube_no), side ('N'|'S', default 'N')
 // Reads the OmniPC export server-side, computes the rating, and upserts the tube.
+// Each tube can have up to two independent scans — one per side (e.g. North/South) —
+// stored as separate rows sharing the same tube_no.
 router.post('/', upload.single('file'), async (req, res) => {
   const { row_id } = req.body;
   const isRiser = req.body.is_riser === 'true' || req.body.is_riser === true;
   const tubeNo = isRiser ? RISER_TUBE_NO : parseInt(req.body.tube_no, 10);
+  const side = req.body.side === 'S' ? 'S' : 'N';
   if (!row_id || (!isRiser && !req.body.tube_no)) {
     return res.status(400).json({ error: 'row_id and tube_no (or is_riser) are required' });
   }
@@ -51,6 +54,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       {
         row_id,
         tube_no: tubeNo,
+        side,
         is_riser: isRiser,
         file_name: req.file.originalname,
         total_points: result.total,
@@ -61,17 +65,18 @@ router.post('/', upload.single('file'), async (req, res) => {
         rating: result.rating,
         raw_amplitudes: rawAmplitudes,
       },
-      { onConflict: 'row_id,tube_no' }
+      { onConflict: 'row_id,tube_no,side' }
     )
-    .select('id, row_id, tube_no, is_riser, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
+    .select('id, row_id, tube_no, side, is_riser, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json(data);
 });
 
-// GET /api/tubes?row_id=... — list tubes for a row, padded with NT up to total_tubes,
-// with the riser (if enabled for this row) spliced in at its configured position.
+// GET /api/tubes?row_id=... — list tubes for a row, padded with NT up to total_tubes.
+// Each tube number produces TWO rows (side N and side S), independent of each other.
+// The riser (if enabled) is a single row spliced in at its configured position.
 router.get('/', async (req, res) => {
   const { row_id } = req.query;
   if (!row_id) return res.status(400).json({ error: 'row_id is required' });
@@ -85,42 +90,47 @@ router.get('/', async (req, res) => {
 
   const { data: tubes, error } = await supabase
     .from('tubes')
-    .select('id, row_id, tube_no, is_riser, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
+    .select('id, row_id, tube_no, side, is_riser, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
     .eq('row_id', row_id)
     .order('tube_no');
   if (error) return res.status(500).json({ error: error.message });
 
-  const byNo = {};
+  const byKey = {};
   let riserTube = null;
   tubes.forEach((t) => {
     if (t.is_riser) riserTube = t;
-    else byNo[t.tube_no] = t;
+    else byKey[t.tube_no + '_' + t.side] = t;
   });
   const maxNo = Math.max(row.total_tubes || 0, ...tubes.filter((t) => !t.is_riser).map((t) => t.tube_no), 0);
 
   const list = [];
   for (let n = 1; n <= maxNo; n++) {
-    list.push(byNo[n] || { row_id, tube_no: n, rating: 'NT', total_points: 0, is_placeholder: true });
+    ['N', 'S'].forEach((side) => {
+      list.push(byKey[n + '_' + side] || { row_id, tube_no: n, side, rating: 'NT', total_points: 0, is_placeholder: true });
+    });
   }
 
   if (row.has_riser) {
     const riserEntry = riserTube || { row_id, tube_no: RISER_TUBE_NO, rating: 'NT', total_points: 0, is_placeholder: true };
     riserEntry.is_riser = true;
-    const pos = Math.max(0, Math.min(list.length, row.riser_position || 0));
+    // riser_position counts tubes, not table rows — each tube now occupies 2 rows (N/S).
+    const pos = Math.max(0, Math.min(list.length, (row.riser_position || 0) * 2));
     list.splice(pos, 0, riserEntry);
   }
 
   res.json(list);
 });
 
-// GET /api/tubes/visual?row_id=...&buckets=150
+// GET /api/tubes/visual?row_id=...&buckets=150&side=N
 // Downsampled amplitude strip per tube (for the "Visualisasi Hasil Pemeriksaan Tube"
 // display, matching the report's colour-coded tube columns). Keeps payload small by
-// averaging the raw scan into a fixed number of vertical buckets per tube. The riser
-// (if enabled) is spliced in at its configured position, outside the 1..N numbering.
+// averaging the raw scan into a fixed number of vertical buckets per tube. Shows one
+// side at a time (default N) — the riser (if enabled) is always shown regardless of
+// the selected side, since it's typically scanned once.
 router.get('/visual', async (req, res) => {
   const { row_id } = req.query;
   const buckets = Math.min(Math.max(parseInt(req.query.buckets, 10) || 150, 10), 500);
+  const side = req.query.side === 'S' ? 'S' : 'N';
   if (!row_id) return res.status(400).json({ error: 'row_id is required' });
 
   const { data: row, error: rowErr } = await supabase
@@ -132,7 +142,7 @@ router.get('/visual', async (req, res) => {
 
   const { data: tubes, error } = await supabase
     .from('tubes')
-    .select('tube_no, is_riser, rating, raw_amplitudes')
+    .select('tube_no, side, is_riser, rating, raw_amplitudes')
     .eq('row_id', row_id)
     .order('tube_no');
   if (error) return res.status(500).json({ error: error.message });
@@ -140,8 +150,8 @@ router.get('/visual', async (req, res) => {
   const byNo = {};
   let riserTube = null;
   tubes.forEach((t) => {
-    if (t.is_riser) riserTube = t;
-    else byNo[t.tube_no] = t;
+    if (t.is_riser) { riserTube = t; return; }
+    if (t.side === side) byNo[t.tube_no] = t;
   });
   const maxNo = Math.max(row.total_tubes || 0, ...tubes.filter((t) => !t.is_riser).map((t) => t.tube_no), 0);
 
@@ -197,7 +207,7 @@ router.get('/visual', async (req, res) => {
     list.splice(pos, 0, riserEntry);
   }
 
-  res.json({ buckets, tubes: list });
+  res.json({ buckets, side, tubes: list });
 });
 
 // DELETE /api/tubes/:id
