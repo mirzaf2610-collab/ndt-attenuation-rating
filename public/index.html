@@ -69,10 +69,10 @@
   #app{display:none;}
   #noPlant{display:none;max-width:480px;margin:60px auto;}
   .visual-wrap{display:flex;gap:0;align-items:flex-start;}
-  .visual-scroll{flex:1;overflow-x:auto;border:1px solid var(--line);border-right:none;border-radius:8px 0 0 8px;padding:14px 4px 6px 10px;background:#fafbfc;}
+  .visual-scroll{max-width:100%;overflow-x:auto;border:1px solid var(--line);border-right:none;border-radius:8px 0 0 8px;padding:14px 4px 6px 10px;background:#fafbfc;}
   .visual-columns{display:flex;gap:4px;align-items:flex-end;}
   .visual-col{display:flex;flex-direction:column;align-items:center;width:20px;flex-shrink:0;}
-  .visual-col .tube-no{font-size:9.5px;color:var(--muted);margin-bottom:3px;writing-mode:vertical-rl;transform:rotate(180deg);height:16px;}
+  .visual-col .tube-no{font-size:9.5px;color:var(--muted);margin-bottom:3px;writing-mode:vertical-rl;height:16px;}
   .tube1-dir-marker{display:none;}
   .visual-dir-row{display:flex;justify-content:space-between;padding:8px 10px 0;}
   .visual-dir-arrow{text-align:center;}
@@ -82,6 +82,12 @@
   .visual-col .tube-rating{margin-top:4px;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;}
   .visual-legend{display:flex;align-items:stretch;gap:6px;flex-shrink:0;padding:14px 10px 6px 6px;border:1px solid var(--line);border-left:none;border-radius:0 8px 8px 0;background:#fafbfc;}
   .visual-legend-labels{display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--muted);padding:1px 0;}
+  .iso-scene{transform:perspective(1400px) rotateX(55deg) rotateZ(-25deg);transform-origin:center;display:flex;gap:4px;align-items:flex-end;width:max-content;}
+  textarea{resize:vertical;}
+  .report-img-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .report-img-item img{height:50px;border-radius:4px;border:1px solid var(--line);}
+  .report-img-item .name{flex:1;font-size:12.5px;}
+  .report-img-item button{background:none;border:none;color:#b23b3b;cursor:pointer;font-size:12px;}
 </style>
 </head>
 <body>
@@ -124,9 +130,38 @@
     </div>
 
     <div class="card">
-      <h2><span class="step">2</span>Upload File Tube</h2>
+      <h2><span class="step">2</span>Setup Row &amp; Riser</h2>
+      <div class="grid-settings" style="margin-bottom:14px;">
+        <div class="field"><label>Row</label><input type="text" id="setupRowLabel" placeholder="misal: A"></div>
+        <div class="field"><label>Jumlah tube</label><input type="number" id="setupTotalTubes" min="0" step="1" placeholder="misal: 48"></div>
+        <div class="field">
+          <label>Arah tube No. 1 (mata angin)</label>
+          <select id="setupTube1Dir">
+            <option value="W">Barat</option>
+            <option value="E">Timur</option>
+            <option value="N">Utara</option>
+            <option value="S">Selatan</option>
+          </select>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="setupHasRiser"> Row ini punya tube Riser
+      </label>
+      <div id="setupRiserPosWrap" style="display:none;margin-top:10px;max-width:260px;">
+        <div class="field"><label>Posisi riser (setelah tube ke-)</label><input type="number" id="setupRiserPos" min="0" step="1"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="saveRowSetupBtn">Simpan Row</button>
+        <button class="btn secondary" id="clearRowSetupBtn">Form Baru / Batal Edit</button>
+      </div>
+      <div class="summary-note" id="rowSetupHint">Belum ada Row yang disiapkan.</div>
+      <div class="table-wrap" style="max-height:none;margin-top:14px;"><table id="rowSetupTable"></table></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">3</span>Upload File Tube</h2>
       <div class="grid-settings" style="margin-bottom:14px;max-width:340px;">
-        <div class="field"><label>Row</label><input type="text" id="rowInput" placeholder="misal: A"></div>
+        <div class="field"><label>Row</label><select id="rowSelect"></select></div>
         <div class="field" id="tubeNoField"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
         <div class="field" id="sideField">
           <label>Sisi</label>
@@ -152,40 +187,15 @@
 
     <div id="resultsSection" style="display:none;">
       <div class="card">
-        <h2><span class="step">3</span>Result Table per Row</h2>
+        <h2><span class="step">4</span>Result Table per Row</h2>
         <div class="tabs" id="tabs"></div>
-        <div class="field" style="max-width:220px;margin-bottom:14px;">
-          <label>Jumlah tube di Row ini</label>
-          <input type="number" id="rowTotalInput" min="0" step="1">
-        </div>
-        <div class="field" style="max-width:220px;margin-bottom:14px;">
-          <label>Arah tube No. 1 (mata angin)</label>
-          <select id="tube1DirInput">
-            <option value="W">Barat</option>
-            <option value="E">Timur</option>
-            <option value="N">Utara</option>
-            <option value="S">Selatan</option>
-          </select>
-        </div>
-        <div class="riser-settings">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;">
-            <input type="checkbox" id="hasRiserInput"> Row ini punya tube Riser
-          </label>
-          <div id="riserPositionWrap" style="display:none;margin-top:8px;align-items:flex-end;gap:10px;flex-wrap:wrap;">
-            <div class="field" style="max-width:220px;">
-              <label>Posisi riser (setelah tube ke-)</label>
-              <input type="number" id="riserPositionInput" min="0" step="1">
-            </div>
-            <button class="btn secondary" id="confirmRiserBtn" style="margin-bottom:1px;">Konfirmasi</button>
-          </div>
-        </div>
         <div class="tabs" id="tableSideTabs" style="margin-bottom:14px;"></div>
         <div class="stat-cards" id="statCards"></div>
         <div class="table-wrap"><table id="detailTable"></table></div>
       </div>
 
       <div class="card">
-        <h2><span class="step">4</span>Visualisasi Hasil Pemeriksaan Tube</h2>
+        <h2><span class="step">5</span>Visualisasi Hasil Pemeriksaan Tube</h2>
         <div class="tabs" id="sideTabs" style="margin-bottom:14px;"></div>
         <div id="captureArea" style="background:#fff;padding:12px;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
@@ -193,7 +203,7 @@
             <div id="captureSubtitle" style="font-size:12.5px;color:var(--muted);"></div>
           </div>
           <div class="visual-wrap">
-            <div style="flex:1;min-width:0;">
+            <div style="flex:0 1 auto;min-width:0;max-width:100%;">
               <div class="visual-scroll" id="visualScroll"></div>
               <div class="visual-dir-row" id="visualDirRow"></div>
             </div>
@@ -208,17 +218,48 @@
         </div>
         <div class="btn-row">
           <button class="btn secondary" id="downloadVisualBtn">Download Gambar</button>
+          <button class="btn secondary" id="toggleIsoBtn">Tampilkan Isometrik View</button>
+          <button class="btn secondary" id="addToReportBtn">+ Tambah Tampilan Ini ke Laporan</button>
+        </div>
+        <div id="isoWrap" style="display:none;margin-top:16px;overflow-x:auto;padding:40px 20px;background:#f5f7fa;border-radius:8px;">
+          <div id="isoScene" class="iso-scene"></div>
+        </div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:18px;align-items:flex-start;">
+          <div>
+            <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px;font-weight:600;">Distribusi Rating (Row ini)</div>
+            <canvas id="donutCanvas" width="180" height="180"></canvas>
+          </div>
+          <div id="donutLegend" style="display:flex;flex-direction:column;gap:6px;justify-content:center;"></div>
         </div>
       </div>
 
       <div class="card">
-        <h2><span class="step">5</span>Rekapitulasi Keseluruhan</h2>
+        <h2><span class="step">6</span>Rekapitulasi Keseluruhan</h2>
         <div class="table-wrap" style="max-height:none;"><table id="summaryTable"></table></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">7</span>Generate Report</h2>
+        <div class="grid-settings">
+          <div class="field"><label>Judul Laporan</label><input type="text" id="rptTitle" placeholder="misal: NON-DESTRUCTIVE EXAMINATION REPORT"></div>
+          <div class="field"><label>No. Laporan</label><input type="text" id="rptNo" placeholder="misal: 01/UAM/IV-IT2/2026"></div>
+          <div class="field"><label>Tanggal</label><input type="text" id="rptDate" placeholder="misal: September 2026"></div>
+        </div>
+        <div class="field" style="margin-top:14px;"><label>Distribusi (satu baris per tujuan)</label><textarea id="rptDistribusi" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+        <div class="field" style="margin-top:14px;"><label>Latar Belakang</label><textarea id="rptLatar" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+        <div class="field" style="margin-top:14px;"><label>Metode Pemeriksaan</label><textarea id="rptMetode" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+        <div class="field" style="margin-top:14px;"><label>Kesimpulan</label><textarea id="rptKesimpulan" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+        <div class="field" style="margin-top:14px;"><label>Saran</label><textarea id="rptSaran" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13.5px;"></textarea></div>
+        <div class="btn-row"><button class="btn secondary" id="saveReportMetaBtn">Simpan Draft</button></div>
+
+        <div class="summary-note" style="margin-top:18px;font-weight:600;">Gambar tube layout yang akan disertakan:</div>
+        <div id="reportImagesList" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+        <div class="btn-row"><button class="btn" id="generatePdfBtn">Generate PDF</button></div>
       </div>
     </div>
 
     <div class="card" id="emptyRowsCard">
-      <div class="empty-hint">Belum ada Row/tube di pabrik ini. Upload file pertama di atas untuk mulai.</div>
+      <div class="empty-hint">Belum ada Row/tube di pabrik ini. Siapkan Row di Langkah 2, lalu upload file tube di Langkah 3.</div>
     </div>
   </div>
 
@@ -227,15 +268,20 @@
 <footer>Data tersimpan di database (Supabase) — bisa diakses lagi dari perangkat mana pun.</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function(){
   const API = '/api';
   let plants = [];
   let currentPlant = null;
-  let rows = []; // [{id, label, total_tubes}]
+  let rows = []; // [{id, label, total_tubes, has_riser, riser_position, tube1_direction}]
   let activeRowId = null;
   let activeSide = 'N';
   let tableSide = 'both'; // 'N' | 'S' | 'both' — filter for the Result Table
+  let editingRowLabel = null; // which row's values are loaded into the Setup form
+  let isoVisible = false;
+  let reportImages = []; // [{label, dataUrl}] — captured tube-layout images for the PDF
+  let lastVisualData = null; // cached render data, reused when toggling isometric view
 
   const RATING_RANK = { A: 4, B1: 3, B2: 2, C: 1 }; // higher = better condition
   function worseRating(r1, r2) {
@@ -336,8 +382,25 @@
     document.getElementById('thB1').value = currentPlant.threshold_b1;
     document.getElementById('thB2').value = currentPlant.threshold_b2;
     document.getElementById('thJustify').value = currentPlant.threshold_justify;
+
+    const rm = currentPlant.report_meta || {};
+    document.getElementById('rptTitle').value = rm.title || '';
+    document.getElementById('rptNo').value = rm.reportNo || '';
+    document.getElementById('rptDate').value = rm.date || '';
+    document.getElementById('rptDistribusi').value = rm.distribusi || '';
+    document.getElementById('rptLatar').value = rm.latar || '';
+    document.getElementById('rptMetode').value = rm.metode || '';
+    document.getElementById('rptKesimpulan').value = rm.kesimpulan || '';
+    document.getElementById('rptSaran').value = rm.saran || '';
+    reportImages = [];
+    renderReportImagesList();
+
     rows = await api('/rows?plant_id=' + id);
     activeRowId = rows.length ? rows[0].id : null;
+    editingRowLabel = null;
+    resetRowSetupForm();
+    renderRowSetupTable();
+    renderRowSelect();
     await refreshAll();
   }
 
@@ -358,13 +421,113 @@
     await refreshAll();
   });
 
+  // ---------- Step 2: Setup Row & Riser ----------
+  const setupRowLabel = document.getElementById('setupRowLabel');
+  const setupTotalTubes = document.getElementById('setupTotalTubes');
+  const setupTube1Dir = document.getElementById('setupTube1Dir');
+  const setupHasRiser = document.getElementById('setupHasRiser');
+  const setupRiserPosWrap = document.getElementById('setupRiserPosWrap');
+  const setupRiserPos = document.getElementById('setupRiserPos');
+
+  setupHasRiser.addEventListener('change', () => {
+    setupRiserPosWrap.style.display = setupHasRiser.checked ? 'block' : 'none';
+  });
+
+  function resetRowSetupForm() {
+    editingRowLabel = null;
+    setupRowLabel.value = '';
+    setupTotalTubes.value = '';
+    setupTube1Dir.value = 'W';
+    setupHasRiser.checked = false;
+    setupRiserPosWrap.style.display = 'none';
+    setupRiserPos.value = '';
+  }
+
+  document.getElementById('clearRowSetupBtn').addEventListener('click', resetRowSetupForm);
+
+  document.getElementById('saveRowSetupBtn').addEventListener('click', async () => {
+    const label = setupRowLabel.value.trim().toUpperCase();
+    const totalTubes = parseInt(setupTotalTubes.value, 10);
+    if (!label) return alert('Isi nama Row dulu.');
+    if (isNaN(totalTubes) || totalTubes < 0) return alert('Isi jumlah tube dulu.');
+
+    const hasRiser = setupHasRiser.checked;
+    const riserPos = hasRiser ? (parseInt(setupRiserPos.value, 10) || 0) : 0;
+
+    const row = await api('/rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plant_id: currentPlant.id,
+        label,
+        total_tubes: totalTubes,
+        has_riser: hasRiser,
+        riser_position: riserPos,
+        tube1_direction: setupTube1Dir.value,
+      }),
+    });
+
+    rows = await api('/rows?plant_id=' + currentPlant.id);
+    if (!activeRowId || !rows.find(r => r.id === activeRowId)) activeRowId = row.id;
+    resetRowSetupForm();
+    renderRowSetupTable();
+    renderRowSelect();
+    await refreshAll();
+  });
+
+  function renderRowSetupTable() {
+    const hint = document.getElementById('rowSetupHint');
+    const tableEl = document.getElementById('rowSetupTable');
+    if (rows.length === 0) {
+      hint.style.display = 'block';
+      hint.textContent = 'Belum ada Row yang disiapkan.';
+      tableEl.innerHTML = '';
+      return;
+    }
+    hint.style.display = 'none';
+    let html = '<thead><tr><th>Row</th><th>Jumlah Tube</th><th>Riser</th><th>Arah Tube No.1</th><th></th></tr></thead><tbody>';
+    rows.forEach(r => {
+      html += `<tr>
+        <td>${escapeHtml(r.label)}</td>
+        <td>${r.total_tubes}</td>
+        <td>${r.has_riser ? 'Ya (posisi ' + r.riser_position + ')' : 'Tidak'}</td>
+        <td>${DIR_LABEL_ID[r.tube1_direction || 'W']}</td>
+        <td><button class="btn secondary editRowSetupBtn" data-label="${escapeHtml(r.label)}" style="padding:5px 12px;font-size:12px;">Edit</button></td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    tableEl.innerHTML = html;
+    tableEl.querySelectorAll('.editRowSetupBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const label = btn.getAttribute('data-label');
+        const r = rows.find(x => x.label === label);
+        if (!r) return;
+        editingRowLabel = label;
+        setupRowLabel.value = r.label;
+        setupTotalTubes.value = r.total_tubes;
+        setupTube1Dir.value = r.tube1_direction || 'W';
+        setupHasRiser.checked = !!r.has_riser;
+        setupRiserPosWrap.style.display = r.has_riser ? 'block' : 'none';
+        setupRiserPos.value = r.riser_position || 0;
+        window.scrollTo({ top: setupRowLabel.getBoundingClientRect().top + window.scrollY - 100, behavior: 'smooth' });
+      });
+    });
+  }
+
+  function renderRowSelect() {
+    const sel = document.getElementById('rowSelect');
+    sel.innerHTML = rows.length
+      ? rows.map(r => `<option value="${r.id}">Row ${escapeHtml(r.label)}</option>`).join('')
+      : '<option value="">-- siapkan Row di Langkah 2 dulu --</option>';
+  }
+
   // ---------- Upload ----------
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
   const pendingFileStatus = document.getElementById('pendingFileStatus');
   const submitBtn = document.getElementById('submitBtn');
   const uploadStatus = document.getElementById('uploadStatus');
-  const rowInput = document.getElementById('rowInput');
+  const rowSelect = document.getElementById('rowSelect');
   const tubeNoInput = document.getElementById('tubeNoInput');
   const tubeNoField = document.getElementById('tubeNoField');
   const isRiserInput = document.getElementById('isRiserInput');
@@ -390,26 +553,16 @@
 
   submitBtn.addEventListener('click', async () => {
     if (!pendingFile || !currentPlant) return;
-    const rowLabel = rowInput.value.trim().toUpperCase();
+    const row = rows.find(r => r.id === rowSelect.value);
     const isRiser = isRiserInput.checked;
     const tubeNo = isRiser ? null : parseInt(tubeNoInput.value, 10);
     const side = sideInput.value;
-    if (!rowLabel) return alert('Isi Row dulu.');
+    if (!row) return alert('Siapkan Row-nya dulu di Langkah 2.');
     if (!isRiser && isNaN(tubeNo)) return alert('Isi No Tube dulu.');
 
     submitBtn.disabled = true;
     uploadStatus.textContent = 'Memproses...';
     try {
-      let row = rows.find(r => r.label === rowLabel);
-      if (!row) {
-        row = await api('/rows', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plant_id: currentPlant.id, label: rowLabel, total_tubes: 0 }),
-        });
-        rows.push(row);
-      }
-
       const form = new FormData();
       form.append('file', pendingFile);
       form.append('row_id', row.id);
@@ -424,8 +577,8 @@
       activeRowId = row.id;
       const sideLabel = side === 'S' ? 'Selatan' : 'Utara';
       uploadStatus.textContent = isRiser
-        ? 'Tube Riser di Row ' + rowLabel + ' tersimpan.'
-        : 'Tube ' + tubeNo + ' (' + sideLabel + ') di Row ' + rowLabel + ' tersimpan.';
+        ? 'Tube Riser di Row ' + row.label + ' tersimpan.'
+        : 'Tube ' + tubeNo + ' (' + sideLabel + ') di Row ' + row.label + ' tersimpan.';
       setTimeout(() => { uploadStatus.textContent = ''; }, 2500);
     } catch (err) {
       uploadStatus.textContent = 'Gagal: ' + err.message;
@@ -441,6 +594,7 @@
   // ---------- Rendering ----------
   async function refreshAll() {
     rows = await api('/rows?plant_id=' + currentPlant.id);
+    renderRowSelect();
     if (rows.length === 0) {
       emptyRowsCard.style.display = 'block';
       resultsSection.style.display = 'none';
@@ -466,48 +620,6 @@
       tab.addEventListener('click', async () => { activeRowId = row.id; await refreshAll(); });
       tabsEl.appendChild(tab);
     });
-    const rowTotalInput = document.getElementById('rowTotalInput');
-    const activeRow = rows.find(r => r.id === activeRowId);
-    rowTotalInput.value = activeRow ? activeRow.total_tubes : '';
-    rowTotalInput.onchange = async () => {
-      const v = parseInt(rowTotalInput.value, 10);
-      await api('/rows/' + activeRowId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ total_tubes: isNaN(v) ? 0 : v }),
-      });
-      await refreshAll();
-    };
-
-    const hasRiserInput = document.getElementById('hasRiserInput');
-    const riserPositionWrap = document.getElementById('riserPositionWrap');
-    const riserPositionInput = document.getElementById('riserPositionInput');
-    hasRiserInput.checked = !!(activeRow && activeRow.has_riser);
-    riserPositionWrap.style.display = hasRiserInput.checked ? 'flex' : 'none';
-    riserPositionInput.value = activeRow ? (activeRow.riser_position || 0) : 0;
-    hasRiserInput.onchange = () => {
-      riserPositionWrap.style.display = hasRiserInput.checked ? 'flex' : 'none';
-    };
-    document.getElementById('confirmRiserBtn').onclick = async () => {
-      const v = parseInt(riserPositionInput.value, 10);
-      await api('/rows/' + activeRowId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ has_riser: hasRiserInput.checked, riser_position: isNaN(v) ? 0 : v }),
-      });
-      await refreshAll();
-    };
-
-    const tube1DirInput = document.getElementById('tube1DirInput');
-    tube1DirInput.value = activeRow ? (activeRow.tube1_direction || 'W') : 'W';
-    tube1DirInput.onchange = async () => {
-      await api('/rows/' + activeRowId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tube1_direction: tube1DirInput.value }),
-      });
-      await refreshAll();
-    };
   }
 
   async function renderDetail() {
@@ -627,7 +739,7 @@
 
   // ---------- Visualisasi tube (colour-coded strip, like the report pages) ----------
   const ratingColors = {
-    A: '#1d6fd6', B1: '#1c9e6b', B2: '#d98a12', C: '#d13c3c', NT: '#c7cdd6',
+    A: '#1d6fd6', B1: '#1c9e6b', B2: '#d98a12', C: '#d13c3c', NT: '#8a94a3',
   };
 
   // Colour scale sampled directly from the OmniScan MX2 "% Amplitude" legend
@@ -685,6 +797,124 @@
   }
   drawLegend();
 
+  const COL_HEIGHT = 330;
+  const RISER_CANVAS_W = 16, NORMAL_CANVAS_W = 12;
+  const RISER_COL_W = 20, NORMAL_COL_W = 15;
+
+  function buildColumnEl(t) {
+    const canvasWidth = t.is_riser ? RISER_CANVAS_W : NORMAL_CANVAS_W;
+    const colWidth = t.is_riser ? RISER_COL_W : NORMAL_COL_W;
+
+    const col = document.createElement('div');
+    col.className = 'visual-col';
+    col.style.width = colWidth + 'px';
+
+    const label = document.createElement('div');
+    label.className = 'tube-no';
+    label.textContent = t.is_riser ? 'R' : t.tube_no;
+    if (t.is_riser) label.style.fontWeight = '700';
+    col.appendChild(label);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = COL_HEIGHT;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#c7cdd6';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (t.strip) {
+      const topMargin = COL_HEIGHT * 0.05;
+      const bottomMargin = COL_HEIGHT * 0.05;
+      const dataHeight = COL_HEIGHT - topMargin - bottomMargin;
+      const n = t.strip.length;
+      for (let i = 0; i < n; i++) {
+        const y = topMargin + Math.floor((i / n) * dataHeight);
+        const yEnd = topMargin + Math.max(Math.floor((i / n) * dataHeight) + 1, Math.floor(((i + 1) / n) * dataHeight));
+        ctx.fillStyle = amplitudeColor(t.strip[i]);
+        ctx.fillRect(0, y, canvas.width, yEnd - y);
+      }
+    }
+    col.appendChild(canvas);
+
+    const pill = document.createElement('div');
+    pill.className = 'tube-rating';
+    pill.textContent = t.rating;
+    pill.style.background = (ratingColors[t.rating] || '#c7cdd6') + '22';
+    pill.style.color = ratingColors[t.rating] || '#6b7686';
+    col.appendChild(pill);
+
+    return col;
+  }
+
+  function buildIsoScene() {
+    const isoScene = document.getElementById('isoScene');
+    isoScene.innerHTML = '';
+    if (!lastVisualData) return;
+    lastVisualData.renderList.forEach(t => {
+      isoScene.appendChild(buildColumnEl(t));
+    });
+  }
+
+  document.getElementById('toggleIsoBtn').addEventListener('click', () => {
+    isoVisible = !isoVisible;
+    document.getElementById('isoWrap').style.display = isoVisible ? 'block' : 'none';
+    document.getElementById('toggleIsoBtn').textContent = isoVisible ? 'Sembunyikan Isometrik View' : 'Tampilkan Isometrik View';
+    if (isoVisible) buildIsoScene();
+  });
+
+  function drawDonut(counts, total) {
+    const canvas = document.getElementById('donutCanvas');
+    const ctx = canvas.getContext('2d');
+    const cx = canvas.width / 2, cy = canvas.height / 2, rOuter = 80, rInner = 46;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (total === 0) {
+      ctx.fillStyle = '#c7cdd6';
+      ctx.beginPath();
+      ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
+      ctx.arc(cx, cy, rInner, 0, Math.PI * 2, true);
+      ctx.fill('evenodd');
+      return;
+    }
+    let start = -Math.PI / 2;
+    ['A', 'B1', 'B2', 'C', 'NT'].forEach(r => {
+      const val = counts[r] || 0;
+      if (val === 0) return;
+      const angle = (val / total) * Math.PI * 2;
+      ctx.fillStyle = ratingColors[r];
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, rOuter, start, start + angle);
+      ctx.closePath();
+      ctx.fill();
+      start += angle;
+    });
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#1b2733';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(total, cx, cy - 6);
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#6b7686';
+    ctx.fillText('tube', cx, cy + 10);
+  }
+
+  function renderDonutLegend(counts, total) {
+    const el = document.getElementById('donutLegend');
+    el.innerHTML = ['A', 'B1', 'B2', 'C', 'NT'].map(r => {
+      const val = counts[r] || 0;
+      const pct = total ? (val / total * 100).toFixed(1) : '0.0';
+      return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${ratingColors[r]};display:inline-block;"></span>
+        <span style="width:26px;font-weight:600;">${r}</span>
+        <span style="color:var(--muted);">${val} tube (${pct}%)</span>
+      </div>`;
+    }).join('');
+  }
+
   async function renderVisual() {
     const activeRowObj = rows.find(r => r.id === activeRowId);
     const tube1Dir = activeRowObj ? (activeRowObj.tube1_direction || 'W') : 'W';
@@ -705,11 +935,6 @@
 
     const data = await api('/tubes/visual?row_id=' + activeRowId + '&buckets=150&side=' + activeSide);
     const scrollEl = document.getElementById('visualScroll');
-    const colHeight = 330;
-    const riserCanvasWidth = 16;              // current/full size — riser keeps this
-    const normalCanvasWidth = 12;              // 3/4 of the riser size
-    const riserColWidth = 20;                  // matches existing container width
-    const normalColWidth = 15;                 // 3/4 of the riser container width
 
     const wrap = document.createElement('div');
     wrap.className = 'visual-columns';
@@ -720,55 +945,21 @@
     // West is on the viewer's right — so the whole row (riser included) is
     // mirrored for that view.
     const renderList = reverseOrder ? data.tubes.slice().reverse() : data.tubes;
+    lastVisualData = { renderList };
+
+    const counts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
+    renderList.forEach(t => { counts[t.rating] = (counts[t.rating] || 0) + 1; });
+    drawDonut(counts, renderList.length);
+    renderDonutLegend(counts, renderList.length);
 
     renderList.forEach(t => {
-      const canvasWidth = t.is_riser ? riserCanvasWidth : normalCanvasWidth;
-      const colWidth = t.is_riser ? riserColWidth : normalColWidth;
-
-      const col = document.createElement('div');
-      col.className = 'visual-col';
-      col.style.width = colWidth + 'px';
-
-      const label = document.createElement('div');
-      label.className = 'tube-no';
-      label.textContent = t.is_riser ? 'R' : t.tube_no;
-      if (t.is_riser) label.style.fontWeight = '700';
-      col.appendChild(label);
-
-      const canvas = document.createElement('canvas');
-      canvas.width = canvasWidth;
-      canvas.height = colHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#c7cdd6';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (t.strip) {
-        // Leave a small untested margin top & bottom — scanning in the field
-        // never quite reaches the very ends of the tube.
-        const topMargin = colHeight * 0.05;
-        const bottomMargin = colHeight * 0.05;
-        const dataHeight = colHeight - topMargin - bottomMargin;
-        const n = t.strip.length;
-        for (let i = 0; i < n; i++) {
-          const y = topMargin + Math.floor((i / n) * dataHeight);
-          const yEnd = topMargin + Math.max(Math.floor((i / n) * dataHeight) + 1, Math.floor(((i + 1) / n) * dataHeight));
-          ctx.fillStyle = amplitudeColor(t.strip[i]);
-          ctx.fillRect(0, y, canvas.width, yEnd - y);
-        }
-      }
-      col.appendChild(canvas);
-
-      const pill = document.createElement('div');
-      pill.className = 'tube-rating';
-      pill.textContent = t.rating;
-      pill.style.background = (ratingColors[t.rating] || '#c7cdd6') + '22';
-      pill.style.color = ratingColors[t.rating] || '#6b7686';
-      col.appendChild(pill);
-
-      wrap.appendChild(col);
+      wrap.appendChild(buildColumnEl(t));
     });
 
     scrollEl.innerHTML = '';
     scrollEl.appendChild(wrap);
+
+    if (isoVisible) buildIsoScene();
 
     const tube1Label = DIR_LABEL_ID[tube1Dir];
     const oppositeLabel = DIR_LABEL_ID[DEG_DIR[addDeg(DIR_DEG[tube1Dir], 180)]];
@@ -821,10 +1012,172 @@
     });
   });
 
+  // ---------- Report ----------
+  function renderReportImagesList() {
+    const el = document.getElementById('reportImagesList');
+    if (reportImages.length === 0) {
+      el.innerHTML = '<div class="summary-note">Belum ada gambar. Buka Langkah 5, atur Row/Sisi yang mau disertakan, lalu klik "+ Tambah Tampilan Ini ke Laporan".</div>';
+      return;
+    }
+    el.innerHTML = reportImages.map((img, i) => `
+      <div class="report-img-item">
+        <img src="${img.dataUrl}">
+        <div class="name">${escapeHtml(img.label)}</div>
+        <button data-i="${i}" class="removeReportImgBtn">Hapus</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.removeReportImgBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        reportImages.splice(parseInt(btn.getAttribute('data-i'), 10), 1);
+        renderReportImagesList();
+      });
+    });
+  }
+
+  document.getElementById('addToReportBtn').addEventListener('click', () => {
+    const target = document.getElementById('captureArea');
+    const activeRowObj = rows.find(r => r.id === activeRowId);
+    const rowLabel = activeRowObj ? activeRowObj.label : '?';
+    const tube1Dir = activeRowObj ? (activeRowObj.tube1_direction || 'W') : 'W';
+    const sideLabel = DIR_LABEL_ID[sideActualDir(tube1Dir, activeSide)];
+    html2canvas(target, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+      reportImages.push({ label: 'Row ' + rowLabel + ' - Sisi ' + sideLabel, dataUrl: canvas.toDataURL('image/png') });
+      renderReportImagesList();
+    });
+  });
+
+  function collectReportMeta() {
+    return {
+      title: document.getElementById('rptTitle').value,
+      reportNo: document.getElementById('rptNo').value,
+      date: document.getElementById('rptDate').value,
+      distribusi: document.getElementById('rptDistribusi').value,
+      latar: document.getElementById('rptLatar').value,
+      metode: document.getElementById('rptMetode').value,
+      kesimpulan: document.getElementById('rptKesimpulan').value,
+      saran: document.getElementById('rptSaran').value,
+    };
+  }
+
+  document.getElementById('saveReportMetaBtn').addEventListener('click', async () => {
+    const updated = await api('/plants/' + currentPlant.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_meta: collectReportMeta() }),
+    });
+    currentPlant = updated;
+    const idx = plants.findIndex(p => p.id === updated.id);
+    if (idx >= 0) plants[idx] = updated;
+    alert('Draft laporan tersimpan.');
+  });
+
+  document.getElementById('generatePdfBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('generatePdfBtn');
+    btn.disabled = true;
+    btn.textContent = 'Membuat PDF...';
+    try {
+      const meta = collectReportMeta();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 50;
+      let y;
+
+      function addWrappedText(text, x, startY, maxWidth, lineHeight) {
+        const lines = doc.splitTextToSize(text || '-', maxWidth);
+        doc.text(lines, x, startY);
+        return startY + lines.length * lineHeight;
+      }
+
+      // ---- Page 1: Cover ----
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text(meta.title || 'NON-DESTRUCTIVE EXAMINATION REPORT', pageW / 2, 160, { align: 'center' });
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'normal');
+      doc.text(currentPlant.name, pageW / 2, 190, { align: 'center' });
+
+      doc.setFontSize(10);
+      y = 260;
+      doc.text('Report No.', margin, y); doc.text(':  ' + (meta.reportNo || '-'), margin + 90, y);
+      y += 16;
+      doc.text('Tanggal', margin, y); doc.text(':  ' + (meta.date || '-'), margin + 90, y);
+      y += 24;
+      doc.text('Distribusi:', margin, y);
+      y += 14;
+      (meta.distribusi || '-').split('\n').forEach(line => {
+        doc.text('- ' + line, margin + 10, y);
+        y += 14;
+      });
+
+      // ---- Page 2: Latar Belakang & Metode ----
+      doc.addPage();
+      y = margin;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('1. Latar Belakang', margin, y); y += 18;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+      y = addWrappedText(meta.latar, margin, y, pageW - margin * 2, 14);
+
+      y += 20;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('2. Metode Pemeriksaan', margin, y); y += 18;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+      y = addWrappedText(meta.metode, margin, y, pageW - margin * 2, 14);
+
+      // ---- Page 3: Rekapitulasi (captured as image) ----
+      doc.addPage();
+      y = margin;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('3. Rekapitulasi Hasil Pemeriksaan', margin, y);
+      y += 16;
+      const summaryCanvas = await html2canvas(document.getElementById('summaryTable'), { backgroundColor: '#ffffff', scale: 2 });
+      const sImg = summaryCanvas.toDataURL('image/png');
+      const sRatio = summaryCanvas.height / summaryCanvas.width;
+      const sW = pageW - margin * 2;
+      const sH = sW * sRatio;
+      doc.addImage(sImg, 'PNG', margin, y, sW, Math.min(sH, pageH - y - margin));
+
+      // ---- Lampiran: tube layout images ----
+      reportImages.forEach(img => {
+        doc.addPage();
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+        doc.text('Lampiran - ' + img.label, margin, margin);
+        const props = doc.getImageProperties(img.dataUrl);
+        const ratio = props.height / props.width;
+        const w = pageW - margin * 2;
+        const h = Math.min(w * ratio, pageH - margin * 2 - 20);
+        const finalW = h === (pageH - margin * 2 - 20) ? h / ratio : w;
+        doc.addImage(img.dataUrl, 'PNG', margin, margin + 20, finalW, finalW * ratio);
+      });
+
+      // ---- Last page: Kesimpulan & Saran ----
+      doc.addPage();
+      y = margin;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('Kesimpulan', margin, y); y += 18;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+      y = addWrappedText(meta.kesimpulan, margin, y, pageW - margin * 2, 14);
+
+      y += 20;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('Saran', margin, y); y += 18;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+      addWrappedText(meta.saran, margin, y, pageW - margin * 2, 14);
+
+      doc.save('laporan_' + currentPlant.name.replace(/\s+/g, '_') + '.pdf');
+    } catch (err) {
+      alert('Gagal membuat PDF: ' + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = 'Generate PDF';
+  });
+
   init().catch(err => {
     document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#b23b3b;">Gagal memuat data: ' + escapeHtml(err.message) + '. Cek koneksi Supabase di server (lihat README).</p>';
   });
 })();
 </script>
+
 </body>
 </html>
