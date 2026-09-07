@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator Rating Atenuasi Ultrasonik</title>
+<style>
+  :root{
+    --navy:#0b2545; --navy-2:#123a6b; --gold:#f2b705;
+    --bg:#eef1f5; --card:#ffffff; --line:#dbe1ea; --ink:#1b2733; --muted:#6b7686;
+    --rA:#1d6fd6; --rA-bg:#e6f0fd;
+    --rB1:#1c9e6b; --rB1-bg:#e5f7ef;
+    --rB2:#d98a12; --rB2-bg:#fdf1de;
+    --rC:#d13c3c; --rC-bg:#fbe6e6;
+    --rNT:#8a94a3; --rNT-bg:#eef0f3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:linear-gradient(120deg,var(--navy) 0%,var(--navy-2) 70%);color:#fff;padding:22px 32px 18px;position:relative;overflow:hidden;}
+  header::after{content:"";position:absolute;right:-40px;top:-60px;width:220px;height:220px;background:var(--gold);opacity:.18;transform:rotate(20deg);border-radius:30px;}
+  header h1{margin:0 0 4px;font-size:21px;font-weight:650;}
+  header p{margin:0;font-size:13px;color:#c8d4e6;max-width:680px;line-height:1.5;}
+  .plant-bar{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .plant-bar select, .plant-bar input{padding:7px 10px;border-radius:7px;border:1px solid #2b4f7d;background:#0e2f57;color:#fff;font-size:13px;}
+  .plant-bar button{padding:7px 14px;border-radius:7px;border:none;background:var(--gold);color:#2a2000;font-weight:600;font-size:13px;cursor:pointer;}
+  main{max-width:1180px;margin:0 auto;padding:22px 20px 60px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:18px;}
+  .card h2{font-size:15px;margin:0 0 14px;display:flex;align-items:center;gap:8px;}
+  .card h2 .step{width:22px;height:22px;border-radius:6px;background:var(--navy);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .grid-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .field input[type=number], .field input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:14px;font-family:inherit;}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+  .legend span{font-size:11.5px;padding:4px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;}
+  .legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .summary-note{font-size:12.5px;color:var(--muted);margin-top:12px;line-height:1.6;}
+  .dropzone{border:1.5px dashed #b7c1d1;border-radius:10px;padding:24px;text-align:center;color:var(--muted);cursor:pointer;font-size:13.5px;}
+  .dropzone.drag{border-color:var(--navy-2);background:#f2f6fc;}
+  .dropzone strong{color:var(--navy);}
+  #fileInput{display:none;}
+  .upload-status{font-size:12.5px;color:var(--muted);margin-top:10px;min-height:16px;}
+  .stat-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat{flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;text-align:center;}
+  .stat .num{font-size:22px;font-weight:700;}
+  .stat .lbl{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .tab{padding:7px 13px;border-radius:7px;background:#eef1f5;color:var(--muted);font-size:12.5px;cursor:pointer;border:1px solid transparent;}
+  .tab.active{background:var(--navy);color:#fff;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{background:#f5f7fa;color:var(--muted);font-weight:600;font-size:11px;position:sticky;top:0;}
+  tbody tr:hover{background:#f9fafc;}
+  .rating-pill{display:inline-block;min-width:30px;padding:3px 9px;border-radius:20px;font-weight:700;font-size:12px;text-align:center;}
+  .rating-A{background:var(--rA-bg);color:var(--rA);}
+  .rating-B1{background:var(--rB1-bg);color:var(--rB1);}
+  .rating-B2{background:var(--rB2-bg);color:var(--rB2);}
+  .rating-C{background:var(--rC-bg);color:var(--rC);}
+  .rating-NT{background:var(--rNT-bg);color:var(--rNT);}
+  .table-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;}
+  .btn:hover{background:var(--navy-2);}
+  .btn:disabled{background:#aab4c2;cursor:not-allowed;}
+  .btn.secondary{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  .btn.secondary:hover{background:#f2f6fc;}
+  .btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .empty-hint{font-size:13px;color:var(--muted);text-align:center;padding:26px 10px;}
+  footer{text-align:center;font-size:11.5px;color:var(--muted);padding:20px;}
+  #app{display:none;}
+  #noPlant{display:none;max-width:480px;margin:60px auto;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kalkulator Rating Atenuasi Ultrasonik</h1>
+  <p>Upload file hasil export OmniPC satu per satu (satu file = satu tube). Data tersimpan di database per pabrik/reformer, jadi bisa diakses lagi kapan pun.</p>
+  <div class="plant-bar" id="plantBar" style="display:none;">
+    <select id="plantSelect"></select>
+    <button id="newPlantBtn">+ Pabrik Baru</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="card" id="noPlant">
+    <h2><span class="step">0</span>Buat Pabrik / Reformer Pertama</h2>
+    <div class="field"><label>Nama pabrik/reformer</label><input type="text" id="firstPlantName" placeholder="misal: Pusri IIB Reformer"></div>
+    <div class="btn-row"><button class="btn" id="createFirstPlantBtn">Buat</button></div>
+  </div>
+
+  <div id="app">
+    <div class="card">
+      <h2><span class="step">1</span>Kriteria Rating</h2>
+      <div class="grid-settings">
+        <div class="field"><label>Batas bawah Rating A (%)</label><input type="number" id="thA" step="0.1"></div>
+        <div class="field"><label>Batas bawah Rating B1 (%)</label><input type="number" id="thB1" step="0.1"></div>
+        <div class="field"><label>Batas bawah Rating B2 (%)</label><input type="number" id="thB2" step="0.1"></div>
+        <div class="field"><label>Ambang justifikasi rating (%)</label><input type="number" id="thJustify" step="0.1"></div>
+      </div>
+      <div class="legend">
+        <span style="background:var(--rA-bg);color:var(--rA);"><span class="dot" style="background:var(--rA);"></span>A: ≥ nilai A</span>
+        <span style="background:var(--rB1-bg);color:var(--rB1);"><span class="dot" style="background:var(--rB1);"></span>B1: nilai B1 – A</span>
+        <span style="background:var(--rB2-bg);color:var(--rB2);"><span class="dot" style="background:var(--rB2);"></span>B2: nilai B2 – B1</span>
+        <span style="background:var(--rC-bg);color:var(--rC);"><span class="dot" style="background:var(--rC);"></span>C: 0 – nilai B2</span>
+        <span style="background:var(--rNT-bg);color:var(--rNT);"><span class="dot" style="background:var(--rNT);"></span>NT: tidak ada data</span>
+      </div>
+      <div class="btn-row"><button class="btn secondary" id="saveThresholdsBtn">Simpan Kriteria</button></div>
+      <div class="summary-note">Kriteria ini berlaku untuk seluruh Row di pabrik yang sedang dipilih.</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">2</span>Upload File Tube</h2>
+      <div class="grid-settings" style="margin-bottom:14px;max-width:340px;">
+        <div class="field"><label>Row</label><input type="text" id="rowInput" placeholder="misal: A"></div>
+        <div class="field"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
+      </div>
+      <div class="dropzone" id="dropzone">
+        <div><strong>Klik untuk pilih file</strong> atau drag &amp; drop file .txt/.csv hasil OmniPC di sini</div>
+        <div style="margin-top:4px;font-size:12px;">Isi dulu Row &amp; No Tube di atas, pilih file, lalu klik Submit.</div>
+      </div>
+      <input type="file" id="fileInput" accept=".txt,.csv">
+      <div class="upload-status" id="pendingFileStatus"></div>
+      <div class="btn-row"><button class="btn" id="submitBtn" disabled>Submit / Tambah ke Tabel</button></div>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+
+    <div id="resultsSection" style="display:none;">
+      <div class="card">
+        <h2><span class="step">3</span>Result Table per Row</h2>
+        <div class="tabs" id="tabs"></div>
+        <div class="field" style="max-width:220px;margin-bottom:14px;">
+          <label>Jumlah tube di Row ini</label>
+          <input type="number" id="rowTotalInput" min="0" step="1">
+        </div>
+        <div class="stat-cards" id="statCards"></div>
+        <div class="table-wrap"><table id="detailTable"></table></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">4</span>Rekapitulasi Keseluruhan</h2>
+        <div class="table-wrap" style="max-height:none;"><table id="summaryTable"></table></div>
+      </div>
+    </div>
+
+    <div class="card" id="emptyRowsCard">
+      <div class="empty-hint">Belum ada Row/tube di pabrik ini. Upload file pertama di atas untuk mulai.</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Data tersimpan di database (Supabase) — bisa diakses lagi dari perangkat mana pun.</footer>
+
+<script>
+(function(){
+  const API = '/api';
+  let plants = [];
+  let currentPlant = null;
+  let rows = []; // [{id, label, total_tubes}]
+  let activeRowId = null;
+  let pendingFile = null;
+
+  const plantBar = document.getElementById('plantBar');
+  const plantSelect = document.getElementById('plantSelect');
+  const newPlantBtn = document.getElementById('newPlantBtn');
+  const noPlantCard = document.getElementById('noPlant');
+  const appEl = document.getElementById('app');
+  const emptyRowsCard = document.getElementById('emptyRowsCard');
+  const resultsSection = document.getElementById('resultsSection');
+
+  async function api(path, opts) {
+    const res = await fetch(API + path, opts);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || res.statusText);
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  // ---------- Bootstrap ----------
+  async function init() {
+    plants = await api('/plants');
+    if (plants.length === 0) {
+      noPlantCard.style.display = 'block';
+      return;
+    }
+    plantBar.style.display = 'flex';
+    renderPlantSelect();
+    await selectPlant(plants[0].id);
+  }
+
+  function renderPlantSelect() {
+    plantSelect.innerHTML = plants.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    plantSelect.value = currentPlant ? currentPlant.id : plants[0].id;
+  }
+
+  plantSelect.addEventListener('change', () => selectPlant(plantSelect.value));
+
+  newPlantBtn.addEventListener('click', async () => {
+    const name = prompt('Nama pabrik/reformer baru:');
+    if (!name || !name.trim()) return;
+    const plant = await api('/plants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    plants.push(plant);
+    renderPlantSelect();
+    plantSelect.value = plant.id;
+    await selectPlant(plant.id);
+  });
+
+  document.getElementById('createFirstPlantBtn').addEventListener('click', async () => {
+    const name = document.getElementById('firstPlantName').value.trim();
+    if (!name) return;
+    const plant = await api('/plants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    plants = [plant];
+    noPlantCard.style.display = 'none';
+    plantBar.style.display = 'flex';
+    renderPlantSelect();
+    await selectPlant(plant.id);
+  });
+
+  async function selectPlant(id) {
+    currentPlant = plants.find(p => p.id === id);
+    appEl.style.display = 'block';
+    document.getElementById('thA').value = currentPlant.threshold_a;
+    document.getElementById('thB1').value = currentPlant.threshold_b1;
+    document.getElementById('thB2').value = currentPlant.threshold_b2;
+    document.getElementById('thJustify').value = currentPlant.threshold_justify;
+    rows = await api('/rows?plant_id=' + id);
+    activeRowId = rows.length ? rows[0].id : null;
+    await refreshAll();
+  }
+
+  document.getElementById('saveThresholdsBtn').addEventListener('click', async () => {
+    const updated = await api('/plants/' + currentPlant.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        threshold_a: parseFloat(document.getElementById('thA').value),
+        threshold_b1: parseFloat(document.getElementById('thB1').value),
+        threshold_b2: parseFloat(document.getElementById('thB2').value),
+        threshold_justify: parseFloat(document.getElementById('thJustify').value),
+      }),
+    });
+    currentPlant = updated;
+    const idx = plants.findIndex(p => p.id === updated.id);
+    if (idx >= 0) plants[idx] = updated;
+    await refreshAll();
+  });
+
+  // ---------- Upload ----------
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const pendingFileStatus = document.getElementById('pendingFileStatus');
+  const submitBtn = document.getElementById('submitBtn');
+  const uploadStatus = document.getElementById('uploadStatus');
+  const rowInput = document.getElementById('rowInput');
+  const tubeNoInput = document.getElementById('tubeNoInput');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+  function handleFile(file) {
+    pendingFile = file || null;
+    pendingFileStatus.textContent = pendingFile ? 'File dipilih: ' + pendingFile.name : '';
+    submitBtn.disabled = !pendingFile;
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    if (!pendingFile || !currentPlant) return;
+    const rowLabel = rowInput.value.trim().toUpperCase();
+    const tubeNo = parseInt(tubeNoInput.value, 10);
+    if (!rowLabel) return alert('Isi Row dulu.');
+    if (isNaN(tubeNo)) return alert('Isi No Tube dulu.');
+
+    submitBtn.disabled = true;
+    uploadStatus.textContent = 'Memproses...';
+    try {
+      let row = rows.find(r => r.label === rowLabel);
+      if (!row) {
+        row = await api('/rows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plant_id: currentPlant.id, label: rowLabel, total_tubes: 0 }),
+        });
+        rows.push(row);
+      }
+
+      const form = new FormData();
+      form.append('file', pendingFile);
+      form.append('row_id', row.id);
+      form.append('tube_no', tubeNo);
+      await api('/tubes', { method: 'POST', body: form });
+
+      activeRowId = row.id;
+      uploadStatus.textContent = 'Tube ' + tubeNo + ' di Row ' + rowLabel + ' tersimpan.';
+      setTimeout(() => { uploadStatus.textContent = ''; }, 2500);
+    } catch (err) {
+      uploadStatus.textContent = 'Gagal: ' + err.message;
+    }
+
+    pendingFile = null;
+    fileInput.value = '';
+    pendingFileStatus.textContent = '';
+    submitBtn.disabled = true;
+    await refreshAll();
+  });
+
+  // ---------- Rendering ----------
+  async function refreshAll() {
+    rows = await api('/rows?plant_id=' + currentPlant.id);
+    if (rows.length === 0) {
+      emptyRowsCard.style.display = 'block';
+      resultsSection.style.display = 'none';
+      return;
+    }
+    emptyRowsCard.style.display = 'none';
+    resultsSection.style.display = 'block';
+    if (!rows.find(r => r.id === activeRowId)) activeRowId = rows[0].id;
+
+    renderTabs();
+    await renderDetail();
+    await renderSummary();
+  }
+
+  function renderTabs() {
+    const tabsEl = document.getElementById('tabs');
+    tabsEl.innerHTML = '';
+    rows.forEach(row => {
+      const tab = document.createElement('div');
+      tab.className = 'tab' + (row.id === activeRowId ? ' active' : '');
+      tab.textContent = 'Row ' + row.label + ' (' + (row.total_tubes || 0) + ')';
+      tab.addEventListener('click', async () => { activeRowId = row.id; await refreshAll(); });
+      tabsEl.appendChild(tab);
+    });
+    const rowTotalInput = document.getElementById('rowTotalInput');
+    const activeRow = rows.find(r => r.id === activeRowId);
+    rowTotalInput.value = activeRow ? activeRow.total_tubes : '';
+    rowTotalInput.onchange = async () => {
+      const v = parseInt(rowTotalInput.value, 10);
+      await api('/rows/' + activeRowId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ total_tubes: isNaN(v) ? 0 : v }),
+      });
+      await refreshAll();
+    };
+  }
+
+  async function renderDetail() {
+    const tubes = await api('/tubes?row_id=' + activeRowId);
+    const counts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
+    tubes.forEach(t => { counts[t.rating] = (counts[t.rating] || 0) + 1; });
+
+    document.getElementById('statCards').innerHTML = `
+      <div class="stat"><div class="num">${tubes.length}</div><div class="lbl">Total Tube</div></div>
+      <div class="stat"><div class="num" style="color:var(--rA)">${counts.A}</div><div class="lbl">Rating A</div></div>
+      <div class="stat"><div class="num" style="color:var(--rB1)">${counts.B1}</div><div class="lbl">Rating B1</div></div>
+      <div class="stat"><div class="num" style="color:var(--rB2)">${counts.B2}</div><div class="lbl">Rating B2</div></div>
+      <div class="stat"><div class="num" style="color:var(--rC)">${counts.C}</div><div class="lbl">Rating C</div></div>
+      <div class="stat"><div class="num" style="color:var(--rNT)">${counts.NT}</div><div class="lbl">NT</div></div>
+    `;
+
+    let html = `<thead><tr><th>Tube No</th><th>File</th><th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th></tr></thead><tbody>`;
+    tubes.forEach(t => {
+      html += `<tr>
+        <td>${t.tube_no}</td>
+        <td style="text-align:left;font-size:11.5px;color:var(--muted);">${escapeHtml(t.file_name || (t.is_placeholder ? 'belum di-upload' : ''))}</td>
+        <td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td>
+        <td style="text-align:center;">${ratingPill(t.rating)}</td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    document.getElementById('detailTable').innerHTML = html;
+  }
+
+  async function renderSummary() {
+    const data = await api('/summary?plant_id=' + currentPlant.id);
+    let html = '<thead><tr><th>Tube Rating</th>';
+    data.rowLabels.forEach(l => html += `<th>Row ${escapeHtml(l)}</th>`);
+    html += '<th>Total</th><th>Persentase</th></tr></thead><tbody>';
+    data.result.forEach(r => {
+      html += `<tr><td>${ratingPill(r.rating)}</td>`;
+      r.perRow.forEach(c => html += `<td>${c}</td>`);
+      html += `<td><b>${r.total}</b></td><td>${r.percentage.toFixed(2)}%</td></tr>`;
+    });
+    html += `<tr style="border-top:2px solid var(--line);"><td><b>Total</b></td>`;
+    data.rowLabels.forEach(() => html += `<td></td>`);
+    html += `<td><b>${data.totalTubes}</b></td><td><b>100.00%</b></td></tr></tbody>`;
+    document.getElementById('summaryTable').innerHTML = html;
+  }
+
+  function ratingPill(rating) {
+    if (!rating) return '<span class="rating-pill rating-NT">-</span>';
+    return `<span class="rating-pill rating-${rating}">${rating}</span>`;
+  }
+  function fmt(n) { return (n === null || n === undefined) ? 'NT' : Number(n).toFixed(2); }
+  function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  init().catch(err => {
+    document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#b23b3b;">Gagal memuat data: ' + escapeHtml(err.message) + '. Cek koneksi Supabase di server (lihat README).</p>';
+  });
+})();
+</script>
+</body>
+</html>

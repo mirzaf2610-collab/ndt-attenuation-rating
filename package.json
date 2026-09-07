@@ -1,0 +1,19 @@
+{
+  "name": "ndt-attenuation-rating",
+  "version": "1.0.0",
+  "description": "Web tool for computing ultrasonic attenuation rating (A/B1/B2/C/NT) from OmniPC exports, per plant/row/tube.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "express": "^4.19.2",
+    "multer": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  }
+}
