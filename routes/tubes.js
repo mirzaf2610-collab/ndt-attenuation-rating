@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const supabase = require('../lib/supabaseClient');
-const { parseAmplitudeValues, computeTube } = require('../lib/rating');
+const { parseAmplitudeValues, computeTube, parseNumber } = require('../lib/rating');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -33,6 +33,12 @@ router.post('/', upload.single('file'), async (req, res) => {
   const rawValues = parseAmplitudeValues(text);
   const result = computeTube(rawValues, th);
 
+  // Numeric array for the visualization strip — null marks an invalid/untested point.
+  const rawAmplitudes = rawValues.map((v) => {
+    const n = parseNumber(v);
+    return isNaN(n) ? null : n;
+  });
+
   const { data, error } = await supabase
     .from('tubes')
     .upsert(
@@ -46,10 +52,11 @@ router.post('/', upload.single('file'), async (req, res) => {
         pct_b2: result.pctB2,
         pct_c: result.pctC,
         rating: result.rating,
+        raw_amplitudes: rawAmplitudes,
       },
       { onConflict: 'row_id,tube_no' }
     )
-    .select()
+    .select('id, row_id, tube_no, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -70,7 +77,7 @@ router.get('/', async (req, res) => {
 
   const { data: tubes, error } = await supabase
     .from('tubes')
-    .select('*')
+    .select('id, row_id, tube_no, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
     .eq('row_id', row_id)
     .order('tube_no');
   if (error) return res.status(500).json({ error: error.message });
@@ -84,6 +91,62 @@ router.get('/', async (req, res) => {
     list.push(byNo[n] || { row_id, tube_no: n, rating: 'NT', total_points: 0, is_placeholder: true });
   }
   res.json(list);
+});
+
+// GET /api/tubes/visual?row_id=...&buckets=150
+// Downsampled amplitude strip per tube (for the "Visualisasi Hasil Pemeriksaan Tube"
+// display, matching the report's colour-coded tube columns). Keeps payload small by
+// averaging the raw scan into a fixed number of vertical buckets per tube.
+router.get('/visual', async (req, res) => {
+  const { row_id } = req.query;
+  const buckets = Math.min(Math.max(parseInt(req.query.buckets, 10) || 150, 10), 500);
+  if (!row_id) return res.status(400).json({ error: 'row_id is required' });
+
+  const { data: row, error: rowErr } = await supabase
+    .from('rows_')
+    .select('id, total_tubes')
+    .eq('id', row_id)
+    .single();
+  if (rowErr) return res.status(400).json({ error: rowErr.message });
+
+  const { data: tubes, error } = await supabase
+    .from('tubes')
+    .select('tube_no, rating, raw_amplitudes')
+    .eq('row_id', row_id)
+    .order('tube_no');
+  if (error) return res.status(500).json({ error: error.message });
+
+  const byNo = {};
+  tubes.forEach((t) => { byNo[t.tube_no] = t; });
+  const maxNo = Math.max(row.total_tubes || 0, ...tubes.map((t) => t.tube_no), 0);
+
+  function downsample(values) {
+    if (!values || values.length === 0) return null;
+    const n = values.length;
+    const out = new Array(buckets).fill(null);
+    for (let i = 0; i < buckets; i++) {
+      const start = Math.floor((i / buckets) * n);
+      const end = Math.max(start + 1, Math.floor(((i + 1) / buckets) * n));
+      let sum = 0, count = 0;
+      for (let j = start; j < end && j < n; j++) {
+        const v = values[j];
+        if (v !== null && v !== undefined && !isNaN(v)) { sum += v; count++; }
+      }
+      out[i] = count > 0 ? sum / count : null;
+    }
+    return out;
+  }
+
+  const list = [];
+  for (let n = 1; n <= maxNo; n++) {
+    const t = byNo[n];
+    list.push({
+      tube_no: n,
+      rating: t ? t.rating : 'NT',
+      strip: t ? downsample(t.raw_amplitudes) : null,
+    });
+  }
+  res.json({ buckets, tubes: list });
 });
 
 // DELETE /api/tubes/:id
