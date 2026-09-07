@@ -6,12 +6,18 @@ const { parseAmplitudeValues, computeTube, parseNumber } = require('../lib/ratin
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
+const RISER_TUBE_NO = 0; // sentinel — riser sits outside the normal 1..N numbering
+
 // POST /api/tubes
-// multipart/form-data: file, row_id, tube_no
+// multipart/form-data: file, row_id, tube_no (or is_riser=true instead of tube_no)
 // Reads the OmniPC export server-side, computes the rating, and upserts the tube.
 router.post('/', upload.single('file'), async (req, res) => {
-  const { row_id, tube_no } = req.body;
-  if (!row_id || !tube_no) return res.status(400).json({ error: 'row_id and tube_no are required' });
+  const { row_id } = req.body;
+  const isRiser = req.body.is_riser === 'true' || req.body.is_riser === true;
+  const tubeNo = isRiser ? RISER_TUBE_NO : parseInt(req.body.tube_no, 10);
+  if (!row_id || (!isRiser && !req.body.tube_no)) {
+    return res.status(400).json({ error: 'row_id and tube_no (or is_riser) are required' });
+  }
   if (!req.file) return res.status(400).json({ error: 'file is required' });
 
   // Fetch the plant's thresholds via the row -> plant relationship.
@@ -44,7 +50,8 @@ router.post('/', upload.single('file'), async (req, res) => {
     .upsert(
       {
         row_id,
-        tube_no: parseInt(tube_no, 10),
+        tube_no: tubeNo,
+        is_riser: isRiser,
         file_name: req.file.originalname,
         total_points: result.total,
         pct_a: result.pctA,
@@ -56,47 +63,61 @@ router.post('/', upload.single('file'), async (req, res) => {
       },
       { onConflict: 'row_id,tube_no' }
     )
-    .select('id, row_id, tube_no, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
+    .select('id, row_id, tube_no, is_riser, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json(data);
 });
 
-// GET /api/tubes?row_id=... — list tubes for a row, padded with NT up to total_tubes
+// GET /api/tubes?row_id=... — list tubes for a row, padded with NT up to total_tubes,
+// with the riser (if enabled for this row) spliced in at its configured position.
 router.get('/', async (req, res) => {
   const { row_id } = req.query;
   if (!row_id) return res.status(400).json({ error: 'row_id is required' });
 
   const { data: row, error: rowErr } = await supabase
     .from('rows_')
-    .select('id, total_tubes')
+    .select('id, total_tubes, has_riser, riser_position')
     .eq('id', row_id)
     .single();
   if (rowErr) return res.status(400).json({ error: rowErr.message });
 
   const { data: tubes, error } = await supabase
     .from('tubes')
-    .select('id, row_id, tube_no, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
+    .select('id, row_id, tube_no, is_riser, file_name, total_points, pct_a, pct_b1, pct_b2, pct_c, rating')
     .eq('row_id', row_id)
     .order('tube_no');
   if (error) return res.status(500).json({ error: error.message });
 
   const byNo = {};
-  tubes.forEach((t) => { byNo[t.tube_no] = t; });
-  const maxNo = Math.max(row.total_tubes || 0, ...tubes.map((t) => t.tube_no), 0);
+  let riserTube = null;
+  tubes.forEach((t) => {
+    if (t.is_riser) riserTube = t;
+    else byNo[t.tube_no] = t;
+  });
+  const maxNo = Math.max(row.total_tubes || 0, ...tubes.filter((t) => !t.is_riser).map((t) => t.tube_no), 0);
 
   const list = [];
   for (let n = 1; n <= maxNo; n++) {
     list.push(byNo[n] || { row_id, tube_no: n, rating: 'NT', total_points: 0, is_placeholder: true });
   }
+
+  if (row.has_riser) {
+    const riserEntry = riserTube || { row_id, tube_no: RISER_TUBE_NO, rating: 'NT', total_points: 0, is_placeholder: true };
+    riserEntry.is_riser = true;
+    const pos = Math.max(0, Math.min(list.length, row.riser_position || 0));
+    list.splice(pos, 0, riserEntry);
+  }
+
   res.json(list);
 });
 
 // GET /api/tubes/visual?row_id=...&buckets=150
 // Downsampled amplitude strip per tube (for the "Visualisasi Hasil Pemeriksaan Tube"
 // display, matching the report's colour-coded tube columns). Keeps payload small by
-// averaging the raw scan into a fixed number of vertical buckets per tube.
+// averaging the raw scan into a fixed number of vertical buckets per tube. The riser
+// (if enabled) is spliced in at its configured position, outside the 1..N numbering.
 router.get('/visual', async (req, res) => {
   const { row_id } = req.query;
   const buckets = Math.min(Math.max(parseInt(req.query.buckets, 10) || 150, 10), 500);
@@ -104,21 +125,25 @@ router.get('/visual', async (req, res) => {
 
   const { data: row, error: rowErr } = await supabase
     .from('rows_')
-    .select('id, total_tubes')
+    .select('id, total_tubes, has_riser, riser_position')
     .eq('id', row_id)
     .single();
   if (rowErr) return res.status(400).json({ error: rowErr.message });
 
   const { data: tubes, error } = await supabase
     .from('tubes')
-    .select('tube_no, rating, raw_amplitudes')
+    .select('tube_no, is_riser, rating, raw_amplitudes')
     .eq('row_id', row_id)
     .order('tube_no');
   if (error) return res.status(500).json({ error: error.message });
 
   const byNo = {};
-  tubes.forEach((t) => { byNo[t.tube_no] = t; });
-  const maxNo = Math.max(row.total_tubes || 0, ...tubes.map((t) => t.tube_no), 0);
+  let riserTube = null;
+  tubes.forEach((t) => {
+    if (t.is_riser) riserTube = t;
+    else byNo[t.tube_no] = t;
+  });
+  const maxNo = Math.max(row.total_tubes || 0, ...tubes.filter((t) => !t.is_riser).map((t) => t.tube_no), 0);
 
   // Every tube's own raw scan is stretched/compressed to fill the full column
   // height — a shorter scan gets stretched to fit, a longer one gets compressed.
@@ -160,6 +185,18 @@ router.get('/visual', async (req, res) => {
       strip: t ? downsample(t.raw_amplitudes) : null,
     });
   }
+
+  if (row.has_riser) {
+    const riserEntry = {
+      tube_no: 'R',
+      is_riser: true,
+      rating: riserTube ? riserTube.rating : 'NT',
+      strip: riserTube ? downsample(riserTube.raw_amplitudes) : null,
+    };
+    const pos = Math.max(0, Math.min(list.length, row.riser_position || 0));
+    list.splice(pos, 0, riserEntry);
+  }
+
   res.json({ buckets, tubes: list });
 });
 
