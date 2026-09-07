@@ -18,18 +18,20 @@ router.get('/', async (req, res) => {
   res.json(data);
 });
 
-// POST /api/rows — create a row (label) under a plant
-// body: { plant_id, label, total_tubes }
+// POST /api/rows — create (or upsert) a row under a plant
+// body: { plant_id, label, total_tubes, has_riser?, riser_position?, tube1_direction? }
 router.post('/', async (req, res) => {
-  const { plant_id, label, total_tubes } = req.body;
+  const { plant_id, label, total_tubes, has_riser, riser_position, tube1_direction } = req.body;
   if (!plant_id || !label) return res.status(400).json({ error: 'plant_id and label are required' });
+
+  const payload = { plant_id, label: label.trim().toUpperCase(), total_tubes: total_tubes ?? 0 };
+  if (has_riser !== undefined) payload.has_riser = has_riser;
+  if (riser_position !== undefined) payload.riser_position = riser_position;
+  if (tube1_direction !== undefined) payload.tube1_direction = tube1_direction;
 
   const { data, error } = await supabase
     .from('rows_')
-    .upsert(
-      { plant_id, label: label.trim().toUpperCase(), total_tubes: total_tubes ?? 0 },
-      { onConflict: 'plant_id,label' }
-    )
+    .upsert(payload, { onConflict: 'plant_id,label' })
     .select()
     .single();
 
