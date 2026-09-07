@@ -120,6 +120,8 @@ router.get('/visual', async (req, res) => {
   tubes.forEach((t) => { byNo[t.tube_no] = t; });
   const maxNo = Math.max(row.total_tubes || 0, ...tubes.map((t) => t.tube_no), 0);
 
+  // Every tube's own raw scan is stretched/compressed to fill the full column
+  // height — a shorter scan gets stretched to fit, a longer one gets compressed.
   function downsample(values) {
     if (!values || values.length === 0) return null;
     const n = values.length;
