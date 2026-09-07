@@ -37,15 +37,18 @@ router.post('/', async (req, res) => {
   res.status(201).json(data);
 });
 
-// PATCH /api/rows/:id — update total_tubes for a row
+// PATCH /api/rows/:id — update total_tubes and/or riser settings for a row
 router.patch('/:id', async (req, res) => {
   const { id } = req.params;
-  const { total_tubes } = req.body;
-  if (total_tubes === undefined) return res.status(400).json({ error: 'total_tubes is required' });
+  const fields = {};
+  if (req.body.total_tubes !== undefined) fields.total_tubes = req.body.total_tubes;
+  if (req.body.has_riser !== undefined) fields.has_riser = req.body.has_riser;
+  if (req.body.riser_position !== undefined) fields.riser_position = req.body.riser_position;
+  if (Object.keys(fields).length === 0) return res.status(400).json({ error: 'no updatable fields provided' });
 
   const { data, error } = await supabase
     .from('rows_')
-    .update({ total_tubes })
+    .update(fields)
     .eq('id', id)
     .select()
     .single();
