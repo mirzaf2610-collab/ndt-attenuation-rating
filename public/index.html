@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kalkulator Rating Atenuasi Ultrasonik</title>
+<title>Attenuation Calculator</title>
 <style>
   :root{
     --navy:#0b2545; --navy-2:#123a6b; --gold:#f2b705;
@@ -68,12 +68,21 @@
   footer{text-align:center;font-size:11.5px;color:var(--muted);padding:20px;}
   #app{display:none;}
   #noPlant{display:none;max-width:480px;margin:60px auto;}
+  .visual-wrap{display:flex;gap:16px;align-items:flex-start;}
+  .visual-scroll{flex:1;overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:14px 10px 6px;background:#fafbfc;}
+  .visual-columns{display:flex;gap:4px;align-items:flex-end;}
+  .visual-col{display:flex;flex-direction:column;align-items:center;width:20px;flex-shrink:0;}
+  .visual-col .tube-no{font-size:9.5px;color:var(--muted);margin-bottom:3px;writing-mode:vertical-rl;transform:rotate(180deg);height:16px;}
+  .visual-col canvas{border-radius:2px;display:block;}
+  .visual-col .tube-rating{margin-top:4px;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;}
+  .visual-legend{display:flex;align-items:stretch;gap:6px;flex-shrink:0;padding-top:14px;}
+  .visual-legend-labels{display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--muted);padding:1px 0;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Kalkulator Rating Atenuasi Ultrasonik</h1>
+  <h1>Attenuation Calculator</h1>
   <p>Upload file hasil export OmniPC satu per satu (satu file = satu tube). Data tersimpan di database per pabrik/reformer, jadi bisa diakses lagi kapan pun.</p>
   <div class="plant-bar" id="plantBar" style="display:none;">
     <select id="plantSelect"></select>
@@ -138,7 +147,22 @@
       </div>
 
       <div class="card">
-        <h2><span class="step">4</span>Rekapitulasi Keseluruhan</h2>
+        <h2><span class="step">4</span>Visualisasi Hasil Pemeriksaan Tube</h2>
+        <div class="visual-wrap">
+          <div class="visual-scroll" id="visualScroll"></div>
+          <div class="visual-legend">
+            <canvas id="legendCanvas" width="26" height="240"></canvas>
+            <div class="visual-legend-labels">
+              <span>100</span><span>90</span><span>80</span><span>70</span><span>60</span>
+              <span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0 %</span>
+            </div>
+          </div>
+        </div>
+        <div class="summary-note">Tiap kolom = 1 tube, warna mengikuti persentase ketinggian amplitudo di sepanjang tube (skala sama seperti OmniScan MX2). Kolom abu-abu = NT (belum di-upload).</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">5</span>Rekapitulasi Keseluruhan</h2>
         <div class="table-wrap" style="max-height:none;"><table id="summaryTable"></table></div>
       </div>
     </div>
@@ -331,6 +355,7 @@
 
     renderTabs();
     await renderDetail();
+    await renderVisual();
     await renderSummary();
   }
 
@@ -383,6 +408,103 @@
     });
     html += '</tbody>';
     document.getElementById('detailTable').innerHTML = html;
+  }
+
+  // ---------- Visualisasi tube (colour-coded strip, like the report pages) ----------
+  const ratingColors = {
+    A: '#1d6fd6', B1: '#1c9e6b', B2: '#d98a12', C: '#d13c3c', NT: '#c7cdd6',
+  };
+
+  // Reversed-jet colour scale: 0% red -> ... -> 100% blue, matching the
+  // OmniScan MX2 "% Amplitude" legend (red/orange/yellow/green/cyan/blue).
+  const colorStops = [
+    [0,   [139, 0, 0]],
+    [12.5,[255, 0, 0]],
+    [25,  [255, 140, 0]],
+    [37.5,[255, 255, 0]],
+    [50,  [0, 200, 0]],
+    [62.5,[0, 220, 220]],
+    [75,  [0, 140, 255]],
+    [87.5,[0, 60, 220]],
+    [100, [0, 0, 139]],
+  ];
+
+  function amplitudeColor(pct) {
+    if (pct === null || pct === undefined || isNaN(pct)) return '#c7cdd6';
+    const p = Math.max(0, Math.min(100, pct));
+    for (let i = 0; i < colorStops.length - 1; i++) {
+      const [p0, c0] = colorStops[i];
+      const [p1, c1] = colorStops[i + 1];
+      if (p >= p0 && p <= p1) {
+        const t = (p - p0) / (p1 - p0);
+        const r = Math.round(c0[0] + (c1[0] - c0[0]) * t);
+        const g = Math.round(c0[1] + (c1[1] - c0[1]) * t);
+        const b = Math.round(c0[2] + (c1[2] - c0[2]) * t);
+        return `rgb(${r},${g},${b})`;
+      }
+    }
+    return '#c7cdd6';
+  }
+
+  function drawLegend() {
+    const canvas = document.getElementById('legendCanvas');
+    const ctx = canvas.getContext('2d');
+    const h = canvas.height, w = canvas.width;
+    for (let y = 0; y < h; y++) {
+      const pct = 100 - (y / (h - 1)) * 100; // top = 100%, bottom = 0%
+      ctx.fillStyle = amplitudeColor(pct);
+      ctx.fillRect(0, y, w, 1);
+    }
+  }
+  drawLegend();
+
+  async function renderVisual() {
+    const data = await api('/tubes/visual?row_id=' + activeRowId + '&buckets=150');
+    const scrollEl = document.getElementById('visualScroll');
+    const colHeight = 220;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'visual-columns';
+
+    data.tubes.forEach(t => {
+      const col = document.createElement('div');
+      col.className = 'visual-col';
+
+      const label = document.createElement('div');
+      label.className = 'tube-no';
+      label.textContent = t.tube_no;
+      col.appendChild(label);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 16;
+      canvas.height = colHeight;
+      const ctx = canvas.getContext('2d');
+      if (!t.strip) {
+        ctx.fillStyle = '#c7cdd6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        const n = t.strip.length;
+        for (let i = 0; i < n; i++) {
+          const y = Math.floor((i / n) * colHeight);
+          const yEnd = Math.max(y + 1, Math.floor(((i + 1) / n) * colHeight));
+          ctx.fillStyle = amplitudeColor(t.strip[i]);
+          ctx.fillRect(0, y, canvas.width, yEnd - y);
+        }
+      }
+      col.appendChild(canvas);
+
+      const pill = document.createElement('div');
+      pill.className = 'tube-rating';
+      pill.textContent = t.rating;
+      pill.style.background = (ratingColors[t.rating] || '#c7cdd6') + '22';
+      pill.style.color = ratingColors[t.rating] || '#6b7686';
+      col.appendChild(pill);
+
+      wrap.appendChild(col);
+    });
+
+    scrollEl.innerHTML = '';
+    scrollEl.appendChild(wrap);
   }
 
   async function renderSummary() {
