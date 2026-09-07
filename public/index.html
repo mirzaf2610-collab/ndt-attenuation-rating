@@ -491,14 +491,18 @@
       canvas.width = 16;
       canvas.height = colHeight;
       const ctx = canvas.getContext('2d');
-      if (!t.strip) {
-        ctx.fillStyle = '#c7cdd6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
+      ctx.fillStyle = '#c7cdd6';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (t.strip) {
+        // Leave a small untested margin top & bottom — scanning in the field
+        // never quite reaches the very ends of the tube.
+        const topMargin = colHeight * 0.05;
+        const bottomMargin = colHeight * 0.05;
+        const dataHeight = colHeight - topMargin - bottomMargin;
         const n = t.strip.length;
         for (let i = 0; i < n; i++) {
-          const y = Math.floor((i / n) * colHeight);
-          const yEnd = Math.max(y + 1, Math.floor(((i + 1) / n) * colHeight));
+          const y = topMargin + Math.floor((i / n) * dataHeight);
+          const yEnd = topMargin + Math.max(Math.floor((i / n) * dataHeight) + 1, Math.floor(((i + 1) / n) * dataHeight));
           ctx.fillStyle = amplitudeColor(t.strip[i]);
           ctx.fillRect(0, y, canvas.width, yEnd - y);
         }
