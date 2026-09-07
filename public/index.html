@@ -122,8 +122,11 @@
       <h2><span class="step">2</span>Upload File Tube</h2>
       <div class="grid-settings" style="margin-bottom:14px;max-width:340px;">
         <div class="field"><label>Row</label><input type="text" id="rowInput" placeholder="misal: A"></div>
-        <div class="field"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
+        <div class="field" id="tubeNoField"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
       </div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-bottom:14px;">
+        <input type="checkbox" id="isRiserInput"> Ini file untuk tube Riser (No Tube diabaikan)
+      </label>
       <div class="dropzone" id="dropzone">
         <div><strong>Klik untuk pilih file</strong> atau drag &amp; drop file .txt/.csv hasil OmniPC di sini</div>
         <div style="margin-top:4px;font-size:12px;">Isi dulu Row &amp; No Tube di atas, pilih file, lalu klik Submit.</div>
@@ -141,6 +144,18 @@
         <div class="field" style="max-width:220px;margin-bottom:14px;">
           <label>Jumlah tube di Row ini</label>
           <input type="number" id="rowTotalInput" min="0" step="1">
+        </div>
+        <div class="riser-settings">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="hasRiserInput"> Row ini punya tube Riser
+          </label>
+          <div id="riserPositionWrap" style="display:none;margin-top:8px;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+            <div class="field" style="max-width:220px;">
+              <label>Posisi riser (setelah tube ke-)</label>
+              <input type="number" id="riserPositionInput" min="0" step="1">
+            </div>
+            <button class="btn secondary" id="confirmRiserBtn" style="margin-bottom:1px;">Konfirmasi</button>
+          </div>
         </div>
         <div class="stat-cards" id="statCards"></div>
         <div class="table-wrap"><table id="detailTable"></table></div>
@@ -288,6 +303,12 @@
   const uploadStatus = document.getElementById('uploadStatus');
   const rowInput = document.getElementById('rowInput');
   const tubeNoInput = document.getElementById('tubeNoInput');
+  const tubeNoField = document.getElementById('tubeNoField');
+  const isRiserInput = document.getElementById('isRiserInput');
+
+  isRiserInput.addEventListener('change', () => {
+    tubeNoField.style.display = isRiserInput.checked ? 'none' : '';
+  });
 
   dropzone.addEventListener('click', () => fileInput.click());
   ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
@@ -304,9 +325,10 @@
   submitBtn.addEventListener('click', async () => {
     if (!pendingFile || !currentPlant) return;
     const rowLabel = rowInput.value.trim().toUpperCase();
-    const tubeNo = parseInt(tubeNoInput.value, 10);
+    const isRiser = isRiserInput.checked;
+    const tubeNo = isRiser ? null : parseInt(tubeNoInput.value, 10);
     if (!rowLabel) return alert('Isi Row dulu.');
-    if (isNaN(tubeNo)) return alert('Isi No Tube dulu.');
+    if (!isRiser && isNaN(tubeNo)) return alert('Isi No Tube dulu.');
 
     submitBtn.disabled = true;
     uploadStatus.textContent = 'Memproses...';
@@ -324,11 +346,17 @@
       const form = new FormData();
       form.append('file', pendingFile);
       form.append('row_id', row.id);
-      form.append('tube_no', tubeNo);
+      if (isRiser) {
+        form.append('is_riser', 'true');
+      } else {
+        form.append('tube_no', tubeNo);
+      }
       await api('/tubes', { method: 'POST', body: form });
 
       activeRowId = row.id;
-      uploadStatus.textContent = 'Tube ' + tubeNo + ' di Row ' + rowLabel + ' tersimpan.';
+      uploadStatus.textContent = isRiser
+        ? 'Tube Riser di Row ' + rowLabel + ' tersimpan.'
+        : 'Tube ' + tubeNo + ' di Row ' + rowLabel + ' tersimpan.';
       setTimeout(() => { uploadStatus.textContent = ''; }, 2500);
     } catch (err) {
       uploadStatus.textContent = 'Gagal: ' + err.message;
@@ -381,6 +409,25 @@
       });
       await refreshAll();
     };
+
+    const hasRiserInput = document.getElementById('hasRiserInput');
+    const riserPositionWrap = document.getElementById('riserPositionWrap');
+    const riserPositionInput = document.getElementById('riserPositionInput');
+    hasRiserInput.checked = !!(activeRow && activeRow.has_riser);
+    riserPositionWrap.style.display = hasRiserInput.checked ? 'flex' : 'none';
+    riserPositionInput.value = activeRow ? (activeRow.riser_position || 0) : 0;
+    hasRiserInput.onchange = () => {
+      riserPositionWrap.style.display = hasRiserInput.checked ? 'flex' : 'none';
+    };
+    document.getElementById('confirmRiserBtn').onclick = async () => {
+      const v = parseInt(riserPositionInput.value, 10);
+      await api('/rows/' + activeRowId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ has_riser: hasRiserInput.checked, riser_position: isNaN(v) ? 0 : v }),
+      });
+      await refreshAll();
+    };
   }
 
   async function renderDetail() {
@@ -400,7 +447,7 @@
     let html = `<thead><tr><th>Tube No</th><th>File</th><th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th></tr></thead><tbody>`;
     tubes.forEach(t => {
       html += `<tr>
-        <td>${t.tube_no}</td>
+        <td>${t.is_riser ? '<b>R</b>' : t.tube_no}</td>
         <td style="text-align:left;font-size:11.5px;color:var(--muted);">${escapeHtml(t.file_name || (t.is_placeholder ? 'belum di-upload' : ''))}</td>
         <td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td>
         <td style="text-align:center;">${ratingPill(t.rating)}</td>
@@ -474,21 +521,30 @@
     const data = await api('/tubes/visual?row_id=' + activeRowId + '&buckets=150');
     const scrollEl = document.getElementById('visualScroll');
     const colHeight = 330;
+    const riserCanvasWidth = 16;              // current/full size — riser keeps this
+    const normalCanvasWidth = 12;              // 3/4 of the riser size
+    const riserColWidth = 20;                  // matches existing container width
+    const normalColWidth = 15;                 // 3/4 of the riser container width
 
     const wrap = document.createElement('div');
     wrap.className = 'visual-columns';
 
     data.tubes.forEach(t => {
+      const canvasWidth = t.is_riser ? riserCanvasWidth : normalCanvasWidth;
+      const colWidth = t.is_riser ? riserColWidth : normalColWidth;
+
       const col = document.createElement('div');
       col.className = 'visual-col';
+      col.style.width = colWidth + 'px';
 
       const label = document.createElement('div');
       label.className = 'tube-no';
-      label.textContent = t.tube_no;
+      label.textContent = t.is_riser ? 'R' : t.tube_no;
+      if (t.is_riser) label.style.fontWeight = '700';
       col.appendChild(label);
 
       const canvas = document.createElement('canvas');
-      canvas.width = 16;
+      canvas.width = canvasWidth;
       canvas.height = colHeight;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#c7cdd6';
