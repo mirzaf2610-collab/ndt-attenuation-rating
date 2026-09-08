@@ -713,9 +713,13 @@
 
   function renderRowSelect() {
     const sel = document.getElementById('rowSelect');
+    const prevValue = sel.value;
     sel.innerHTML = rows.length
       ? rows.map(r => `<option value="${r.id}">Row ${escapeHtml(r.label)}</option>`).join('')
       : '<option value="">-- siapkan Row di Langkah 2 dulu --</option>';
+    // Keep whatever Row was selected before this re-render (e.g. right after
+    // an upload) instead of silently jumping back to the first option.
+    if (rows.some(r => r.id === prevValue)) sel.value = prevValue;
     updateSideInputLabels();
   }
 
