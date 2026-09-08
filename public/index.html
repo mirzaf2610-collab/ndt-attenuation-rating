@@ -49,6 +49,9 @@
   table{width:100%;border-collapse:collapse;font-size:13px;}
   #detailTable{width:auto;}
   #detailTable td, #detailTable th{padding:8px 14px;white-space:nowrap;}
+  .mapping-table{width:auto;}
+  .mapping-table td, .mapping-table th{padding:5px 7px;white-space:nowrap;font-size:11.5px;text-align:center;}
+  .mapping-table td:first-child, .mapping-table th:first-child{text-align:left;font-weight:600;}
   th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
   th:first-child,td:first-child{text-align:left;}
   thead th{background:#f5f7fa;color:var(--muted);font-weight:600;font-size:11px;position:sticky;top:0;}
@@ -84,6 +87,7 @@
   .visual-col .tube-rating{margin-top:4px;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;}
   .visual-legend{display:flex;align-items:stretch;gap:6px;flex-shrink:0;padding:14px 10px 6px 6px;border:1px solid var(--line);border-left:none;border-radius:0 8px 8px 0;background:#fafbfc;}
   .visual-legend-labels{display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--muted);padding:1px 0;}
+  .visual-legend-caption{writing-mode:vertical-rl;font-size:10.5px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;justify-content:center;margin-left:2px;}
   .iso-scene{transform:perspective(1400px) rotateX(55deg) rotateZ(-25deg);transform-origin:center;display:flex;gap:4px;align-items:flex-end;width:max-content;}
   textarea{resize:vertical;}
   .report-img-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
@@ -215,6 +219,7 @@
                 <span>100</span><span>90</span><span>80</span><span>70</span><span>60</span>
                 <span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0 %</span>
               </div>
+              <div class="visual-legend-caption">Persentase Ketinggian Amplitudo</div>
             </div>
           </div>
         </div>
@@ -241,7 +246,13 @@
       </div>
 
       <div class="card">
-        <h2><span class="step">7</span>Generate Report</h2>
+        <h2><span class="step">7</span>Tube Mapping Keseluruhan (Tampak Atas)</h2>
+        <div class="summary-note" style="margin-top:0;">Tiap kolom = No. Tube, tiap baris = Row. Isinya Rating Total (gabungan Utara+Selatan, ambil yang terburuk) per tube. Kolom Riser terpisah di ujung kanan.</div>
+        <div class="table-wrap" style="max-height:none;margin-top:10px;"><table id="tubeMappingTable" class="mapping-table"></table></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">8</span>Generate Report</h2>
         <div class="summary-note" style="font-weight:600;margin-top:0;">Header Laporan (tampil di tiap halaman isi)</div>
         <div class="field" style="max-width:260px;">
           <label>Logo Perusahaan</label>
@@ -668,6 +679,7 @@
     await renderDetail();
     await renderVisual();
     await renderSummary();
+    await renderTubeMappingGrid();
   }
 
   function renderTabs() {
@@ -853,6 +865,16 @@
       const pct = 100 - (y / (h - 1)) * 100; // top = 100%, bottom = 0%
       ctx.fillStyle = amplitudeColor(pct);
       ctx.fillRect(0, y, w, 1);
+    }
+    // Scale tick lines at each 10% mark, like the reference legend.
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 1;
+    for (let p = 0; p <= 100; p += 10) {
+      const y = Math.round((1 - p / 100) * (h - 1));
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
     }
   }
   drawLegend();
@@ -1060,6 +1082,41 @@
     data.rowLabels.forEach(() => html += `<td></td>`);
     html += `<td><b>${data.totalTubes}</b></td><td><b>100.00%</b></td></tr></tbody>`;
     document.getElementById('summaryTable').innerHTML = html;
+  }
+
+  async function renderTubeMappingGrid() {
+    const maxN = Math.max(0, ...rows.map(r => r.total_tubes || 0));
+    let html = '<thead><tr><th>Row</th>';
+    for (let n = 1; n <= maxN; n++) html += `<th>${n}</th>`;
+    html += '<th>Riser</th></tr></thead><tbody>';
+
+    for (const row of rows) {
+      const tubes = await api('/tubes?row_id=' + row.id);
+      const riserN = tubes.find(t => t.is_riser && t.side === 'N');
+      const riserS = tubes.find(t => t.is_riser && t.side === 'S');
+      const byNo = {};
+      tubes.filter(t => !t.is_riser).forEach(t => {
+        if (!byNo[t.tube_no]) byNo[t.tube_no] = {};
+        byNo[t.tube_no][t.side] = t;
+      });
+
+      html += `<tr><td>Row ${escapeHtml(row.label)}</td>`;
+      for (let n = 1; n <= maxN; n++) {
+        if (n > (row.total_tubes || 0)) { html += '<td></td>'; continue; }
+        const cell = byNo[n] || {};
+        const total = worseRating(cell.N ? cell.N.rating : 'NT', cell.S ? cell.S.rating : 'NT');
+        html += `<td>${ratingPill(total)}</td>`;
+      }
+      if (row.has_riser) {
+        const riserTotal = worseRating(riserN ? riserN.rating : 'NT', riserS ? riserS.rating : 'NT');
+        html += `<td>${ratingPill(riserTotal)}</td>`;
+      } else {
+        html += '<td style="color:var(--muted);">-</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody>';
+    document.getElementById('tubeMappingTable').innerHTML = html;
   }
 
   function ratingPill(rating) {
