@@ -47,6 +47,8 @@
   .tab{padding:7px 13px;border-radius:7px;background:#eef1f5;color:var(--muted);font-size:12.5px;cursor:pointer;border:1px solid transparent;}
   .tab.active{background:var(--navy);color:#fff;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
+  #detailTable{width:auto;}
+  #detailTable td, #detailTable th{padding:8px 14px;white-space:nowrap;}
   th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
   th:first-child,td:first-child{text-align:left;}
   thead th{background:#f5f7fa;color:var(--muted);font-weight:600;font-size:11px;position:sticky;top:0;}
@@ -172,7 +174,7 @@
         </div>
       </div>
       <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-bottom:14px;">
-        <input type="checkbox" id="isRiserInput"> Ini file untuk tube Riser (No Tube diabaikan)
+        <input type="checkbox" id="isRiserInput"> Ini file untuk tube Riser (No Tube diabaikan, Sisi tetap dipilih)
       </label>
       <div class="summary-note" style="margin-top:-6px;margin-bottom:14px;">1 tube bisa punya sampai 2 data — sisi Utara dan Selatan — masing-masing diupload terpisah dan independen (boleh salah satu saja, dua-duanya, atau tidak sama sekali).</div>
       <div class="dropzone" id="dropzone">
@@ -595,7 +597,6 @@
 
   isRiserInput.addEventListener('change', () => {
     tubeNoField.style.display = isRiserInput.checked ? 'none' : '';
-    sideField.style.display = isRiserInput.checked ? 'none' : '';
   });
 
   dropzone.addEventListener('click', () => fileInput.click());
@@ -625,18 +626,18 @@
       const form = new FormData();
       form.append('file', pendingFile);
       form.append('row_id', row.id);
+      form.append('side', side);
       if (isRiser) {
         form.append('is_riser', 'true');
       } else {
         form.append('tube_no', tubeNo);
-        form.append('side', side);
       }
       await api('/tubes', { method: 'POST', body: form });
 
       activeRowId = row.id;
       const sideLabel = side === 'S' ? 'Selatan' : 'Utara';
       uploadStatus.textContent = isRiser
-        ? 'Tube Riser di Row ' + row.label + ' tersimpan.'
+        ? 'Tube Riser (' + sideLabel + ') di Row ' + row.label + ' tersimpan.'
         : 'Tube ' + tubeNo + ' (' + sideLabel + ') di Row ' + row.label + ' tersimpan.';
       setTimeout(() => { uploadStatus.textContent = ''; }, 2500);
     } catch (err) {
@@ -700,7 +701,7 @@
 
     if (tableSide !== 'both') {
       // Single side: one row per tube (that side), riser always shown.
-      const rowsToShow = tubes.filter(t => t.is_riser || t.side === tableSide);
+      const rowsToShow = tubes.filter(t => t.side === tableSide);
       const counts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
       rowsToShow.forEach(t => { counts[t.rating] = (counts[t.rating] || 0) + 1; });
 
@@ -727,7 +728,8 @@
     }
 
     // Both sides: one row per tube, Utara + Selatan side by side, plus Rating Total.
-    const riser = tubes.find(t => t.is_riser);
+    const riserN = tubes.find(t => t.is_riser && t.side === 'N');
+    const riserS = tubes.find(t => t.is_riser && t.side === 'S');
     const byNo = {};
     tubes.filter(t => !t.is_riser).forEach(t => {
       if (!byNo[t.tube_no]) byNo[t.tube_no] = {};
@@ -735,16 +737,25 @@
     });
     const tubeNos = Object.keys(byNo).map(Number).sort((a, b) => a - b);
 
+    // Build the ordered row list, splicing the riser (if any) in at its
+    // configured position — it does NOT consume a tube number.
+    const renderRows = tubeNos.map(no => ({
+      label: String(no),
+      n: byNo[no].N, s: byNo[no].S,
+    }));
+    if (activeRowObj && activeRowObj.has_riser) {
+      const pos = Math.max(0, Math.min(renderRows.length, activeRowObj.riser_position || 0));
+      renderRows.splice(pos, 0, { label: 'R', n: riserN, s: riserS, isRiser: true });
+    }
+
     const totalCounts = { A: 0, B1: 0, B2: 0, C: 0, NT: 0 };
-    tubeNos.forEach(no => {
-      const total = worseRating(byNo[no].N ? byNo[no].N.rating : 'NT', byNo[no].S ? byNo[no].S.rating : 'NT');
+    renderRows.forEach(r => {
+      const total = worseRating(r.n ? r.n.rating : 'NT', r.s ? r.s.rating : 'NT');
       totalCounts[total] = (totalCounts[total] || 0) + 1;
     });
-    if (riser) totalCounts[riser.rating] = (totalCounts[riser.rating] || 0) + 1;
-    const totalRows = tubeNos.length + (riser ? 1 : 0);
 
     document.getElementById('statCards').innerHTML = `
-      <div class="stat"><div class="num">${totalRows}</div><div class="lbl">Total Tube</div></div>
+      <div class="stat"><div class="num">${renderRows.length}</div><div class="lbl">Total Tube</div></div>
       <div class="stat"><div class="num" style="color:var(--rA)">${totalCounts.A}</div><div class="lbl">Rating A</div></div>
       <div class="stat"><div class="num" style="color:var(--rB1)">${totalCounts.B1}</div><div class="lbl">Rating B1</div></div>
       <div class="stat"><div class="num" style="color:var(--rB2)">${totalCounts.B2}</div><div class="lbl">Rating B2</div></div>
@@ -772,25 +783,15 @@
       return `<td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td><td style="text-align:center;">${ratingPill(t.rating)}</td>`;
     }
 
-    tubeNos.forEach(no => {
-      const n = byNo[no].N, s = byNo[no].S;
-      const total = worseRating(n ? n.rating : 'NT', s ? s.rating : 'NT');
+    renderRows.forEach(r => {
+      const total = worseRating(r.n ? r.n.rating : 'NT', r.s ? r.s.rating : 'NT');
       html += `<tr>
-        <td>${no}</td>
-        ${sideCells(n)}
-        ${sideCells(s)}
+        <td>${r.isRiser ? '<b>R</b>' : r.label}</td>
+        ${sideCells(r.n)}
+        ${sideCells(r.s)}
         <td style="text-align:center;">${ratingPill(total)}</td>
       </tr>`;
     });
-
-    if (riser) {
-      html += `<tr>
-        <td><b>R</b></td>
-        <td colspan="5" style="text-align:center;color:var(--muted);font-size:11.5px;">satu sisi saja</td>
-        ${sideCells(riser)}
-        <td style="text-align:center;">${ratingPill(riser.rating)}</td>
-      </tr>`;
-    }
 
     html += '</tbody>';
     document.getElementById('detailTable').innerHTML = html;
@@ -1230,7 +1231,7 @@
     const sLabel = DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')];
 
     if (tableSide !== 'both') {
-      const rowsToShow = tubes.filter(t => t.is_riser || t.side === tableSide);
+      const rowsToShow = tubes.filter(t => t.side === tableSide);
       const head = [['Tube No', '% A', '% B1', '% B2', '% C', 'Rating']];
       const body = rowsToShow.map(t => [
         t.is_riser ? 'R' : String(t.tube_no),
@@ -1239,7 +1240,8 @@
       return { head, body, sideLabel: tableSide === 'N' ? uLabel : sLabel };
     }
 
-    const riser = tubes.find(t => t.is_riser);
+    const riserN = tubes.find(t => t.is_riser && t.side === 'N');
+    const riserS = tubes.find(t => t.is_riser && t.side === 'S');
     const byNo = {};
     tubes.filter(t => !t.is_riser).forEach(t => {
       if (!byNo[t.tube_no]) byNo[t.tube_no] = {};
@@ -1254,15 +1256,16 @@
       [{ content: 'Tube No', rowSpan: 2 }, { content: uLabel, colSpan: 5, styles: { halign: 'center' } }, { content: sLabel, colSpan: 5, styles: { halign: 'center' } }, { content: 'Rating Total', rowSpan: 2 }],
       ['% A', '% B1', '% B2', '% C', 'Rating', '% A', '% B1', '% B2', '% C', 'Rating'],
     ];
-    const body = tubeNos.map(no => {
-      const n = byNo[no].N, s = byNo[no].S;
-      const total = worseRating(n ? n.rating : 'NT', s ? s.rating : 'NT');
-      return [String(no), ...sideVals(n), ...sideVals(s), total];
-    });
-    if (riser) {
-      body.push(['R', ...sideVals(riser.side === 'N' ? riser : null), ...sideVals(riser.side === 'S' ? riser : null), riser.rating]);
+    const renderRows = tubeNos.map(no => ({ label: String(no), n: byNo[no].N, s: byNo[no].S }));
+    if (row.has_riser) {
+      const pos = Math.max(0, Math.min(renderRows.length, row.riser_position || 0));
+      renderRows.splice(pos, 0, { label: 'R', n: riserN, s: riserS });
     }
-    return { head, body, sideLabel: 'Keduanya' };
+    const body = renderRows.map(r => {
+      const total = worseRating(r.n ? r.n.rating : 'NT', r.s ? r.s.rating : 'NT');
+      return [r.label, ...sideVals(r.n), ...sideVals(r.s), total];
+    });
+    return { head, body, sideLabel: '' };
   }
 
   // ---- PDF ----
@@ -1304,6 +1307,7 @@
         doc.line(colC, top, colC, top + boxH);
 
         doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+        const colAWidth = colA - mLeft - 10;
         if (meta.logo) {
           try {
             const props = doc.getImageProperties(meta.logo);
@@ -1312,20 +1316,21 @@
             if (lh > maxH) { lh = maxH; lw = lh * (props.width / props.height); }
             doc.addImage(meta.logo, mLeft + (colA - mLeft - lw) / 2, top + (boxH - lh) / 2 - 7, lw, lh);
             doc.setFontSize(7.5);
-            doc.text(meta.company || '-', mLeft + (colA - mLeft) / 2, top + boxH - 8, { align: 'center' });
+            doc.text(meta.company || '-', mLeft + (colA - mLeft) / 2, top + boxH - 8, { align: 'center', maxWidth: colAWidth });
           } catch (e) {
-            doc.text(meta.company || '-', mLeft + (colA - mLeft) / 2, top + boxH / 2, { align: 'center' });
+            doc.text(meta.company || '-', mLeft + (colA - mLeft) / 2, top + boxH / 2, { align: 'center', maxWidth: colAWidth });
           }
         } else {
-          doc.text(meta.company || '-', mLeft + (colA - mLeft) / 2, top + boxH / 2, { align: 'center' });
+          doc.text(meta.company || '-', mLeft + (colA - mLeft) / 2, top + boxH / 2, { align: 'center', maxWidth: colAWidth });
         }
 
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-        doc.text(meta.title || 'FINAL REPORT', (colA + colC) / 2, top + 22, { align: 'center' });
-        doc.setFontSize(9.5);
-        doc.text(meta.subtitle || '-', (colA + colC) / 2, top + 38, { align: 'center' });
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-        doc.text(meta.project || '-', (colA + colC) / 2, top + 52, { align: 'center' });
+        const midWidth = colC - colA - 16;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+        doc.text(meta.title || 'FINAL REPORT', (colA + colC) / 2, top + 20, { align: 'center', maxWidth: midWidth });
+        doc.setFontSize(8.5);
+        doc.text(meta.subtitle || '-', (colA + colC) / 2, top + 37, { align: 'center', maxWidth: midWidth });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        doc.text(meta.project || '-', (colA + colC) / 2, top + 52, { align: 'center', maxWidth: midWidth });
 
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
         doc.text(meta.dept || '-', colC + 6, top + 16, { maxWidth: pageW - mRight - colC - 10 });
@@ -1337,6 +1342,7 @@
         return top + boxH + 24;
       }
 
+      const ratingColorsRGB = { A: [29, 111, 214], B1: [28, 158, 107], B2: [217, 138, 18], C: [209, 60, 60], NT: [138, 148, 166] };
       const gridTableStyle = {
         theme: 'grid',
         styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.5, lineColor: [20, 30, 50], overflow: 'linebreak' },
@@ -1345,6 +1351,15 @@
         columnStyles: { 0: { halign: 'center', fontStyle: 'bold' } },
         margin: { left: mLeft, right: mRight },
         tableWidth: 'auto',
+        didParseCell: (data) => {
+          if (data.section === 'body') {
+            const val = String(data.cell.raw).trim();
+            if (ratingColorsRGB[val]) {
+              data.cell.styles.textColor = ratingColorsRGB[val];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        },
       };
 
       // ---- Page 1: Cover (no header) ----
@@ -1444,7 +1459,7 @@
         doc.addPage();
         y = addPageHeader();
         doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-        doc.text('5. Result Table - Row ' + row.label + ' (' + sideLabel + ')', mLeft, y);
+        doc.text('5. Result Table - Row ' + row.label + (sideLabel ? ' (' + sideLabel + ')' : ''), mLeft, y);
         y += 12;
         doc.autoTable(Object.assign({}, gridTableStyle, { startY: y, head, body }));
       }
@@ -1567,7 +1582,7 @@
       for (const row of rows) {
         const { head, body, sideLabel } = await gatherRowTableData(row);
         rowTablesHtml += `<div style="page-break-before:always;">
-          <h3>5. Result Table - Row ${escapeHtml(row.label)} (${escapeHtml(sideLabel)})</h3>
+          <h3>5. Result Table - Row ${escapeHtml(row.label)}${sideLabel ? ' (' + escapeHtml(sideLabel) + ')' : ''}</h3>
           ${tableHtml(head, body)}
         </div>`;
       }
