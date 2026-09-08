@@ -45,4 +45,11 @@ router.patch('/:id', async (req, res) => {
   res.json(data);
 });
 
+// DELETE /api/plants/:id — deletes the plant and (via cascade) all its rows & tubes
+router.delete('/:id', async (req, res) => {
+  const { error } = await supabase.from('plants').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).end();
+});
+
 module.exports = router;
