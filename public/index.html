@@ -122,6 +122,7 @@
   <div class="plant-bar" id="plantBar" style="display:none;">
     <select id="plantSelect"></select>
     <button id="newPlantBtn">+ Pabrik Baru</button>
+    <button id="deletePlantBtn" style="background:transparent;border:1px solid #d13c3c;color:#d13c3c;">Hapus Pabrik Ini</button>
   </div>
 </header>
 
@@ -442,6 +443,26 @@
     renderPlantSelect();
     plantSelect.value = plant.id;
     await selectPlant(plant.id);
+  });
+
+  document.getElementById('deletePlantBtn').addEventListener('click', async () => {
+    if (!currentPlant) return;
+    const confirmName = prompt('Ini akan menghapus permanen pabrik "' + currentPlant.name + '" beserta seluruh Row dan data tube di dalamnya. Ketik ulang nama pabriknya untuk konfirmasi:');
+    if (confirmName !== currentPlant.name) {
+      if (confirmName !== null) alert('Nama tidak cocok, penghapusan dibatalkan.');
+      return;
+    }
+    await api('/plants/' + currentPlant.id, { method: 'DELETE' });
+    plants = plants.filter(p => p.id !== currentPlant.id);
+    if (plants.length === 0) {
+      currentPlant = null;
+      appEl.style.display = 'none';
+      plantBar.style.display = 'none';
+      noPlantCard.style.display = 'block';
+    } else {
+      renderPlantSelect();
+      await selectPlant(plants[0].id);
+    }
   });
 
   document.getElementById('createFirstPlantBtn').addEventListener('click', async () => {
@@ -1768,18 +1789,29 @@
       const meta = collectReportMeta();
       const summaryData = await api('/summary?plant_id=' + currentPlant.id);
 
-      function tableHtml(head, body) {
-        let h = '<table style="border-collapse:collapse;width:100%;font-size:10pt;">';
+      function tableHtml(head, body, dividerAfter) {
+        dividerAfter = dividerAfter || [];
+        let h = '<table style="border-collapse:collapse;width:100%;font-size:10pt;border:1px solid #c3d6d3;">';
         head.forEach(row => {
           h += '<tr>';
+          let colIdx = 0;
           row.forEach(cell => {
             const c = typeof cell === 'object' ? cell : { content: cell };
-            h += `<th colspan="${c.colSpan || 1}" rowspan="${c.rowSpan || 1}" style="border:1px solid #14213d;background:#0b2545;color:#fff;padding:5px;text-align:center;">${escapeHtml(String(c.content))}</th>`;
+            const span = c.colSpan || 1;
+            const endIdx = colIdx + span - 1;
+            const divider = dividerAfter.indexOf(endIdx) !== -1;
+            h += `<th colspan="${span}" rowspan="${c.rowSpan || 1}" style="border:1px solid #c3d6d3;${divider ? 'border-right:3px solid #0e9e96;' : ''}background:#e8f6f4;color:#0b3d3a;padding:6px 8px;text-align:center;font-weight:bold;">${escapeHtml(String(c.content))}</th>`;
+            colIdx += span;
           });
           h += '</tr>';
         });
-        body.forEach(row => {
-          h += '<tr>' + row.map(cell => `<td style="border:1px solid #14213d;padding:5px;text-align:center;">${escapeHtml(String(cell))}</td>`).join('') + '</tr>';
+        body.forEach((row, rowIdx) => {
+          h += '<tr' + (rowIdx % 2 === 1 ? ' style="background:#f6faf9;"' : '') + '>';
+          row.forEach((cell, ci) => {
+            const divider = dividerAfter.indexOf(ci) !== -1;
+            h += `<td style="border:1px solid #c3d6d3;${divider ? 'border-right:3px solid #0e9e96;' : ''}padding:6px 8px;text-align:center;">${escapeHtml(String(cell))}</td>`;
+          });
+          h += '</tr>';
         });
         h += '</table>';
         return h;
@@ -1798,9 +1830,10 @@
       let rowTablesHtml = '';
       for (const row of rows) {
         const { head, body, sideLabel } = await gatherRowTableData(row);
+        const dividerAfter = tableSide === 'both' ? [0, 5, 10] : [];
         rowTablesHtml += `<div style="page-break-before:always;">
           <h3>5. Result Table - Row ${escapeHtml(row.label)}${sideLabel ? ' (' + escapeHtml(sideLabel) + ')' : ''}</h3>
-          ${tableHtml(head, body)}
+          ${tableHtml(head, body, dividerAfter)}
         </div>`;
       }
 
@@ -1820,14 +1853,16 @@
       const mapDirNote = mapData.rowSequences.length
         ? mapData.rowSequences[0].tube1Label + ' \u2192 ' + mapData.rowSequences[0].oppositeLabel
         : '';
-      const mappingHtml = `<div style="page-break-before:always;">
-        <h3 style="display:flex;justify-content:space-between;"><span>6. Tube Mapping Keseluruhan (Tampak Atas)</span><span style="font-size:10pt;font-weight:normal;">${escapeHtml(mapDirNote)}</span></h3>
-        <div style="font-size:8pt;">${tableHtml(mapHead, mapBody)}</div>
-      </div>`;
-
+      // Landscape appendix — Tube Mapping and Tube Display Condition together, no header.
       let lampiranHtml = '';
+      if (mapData.rowSequences.length) {
+        lampiranHtml += `<div class="Section2" style="page-break-before:always;">
+          <h3 style="display:flex;justify-content:space-between;"><span>Lampiran - Tube Mapping Keseluruhan (Tampak Atas)</span><span style="font-size:10pt;font-weight:normal;">${escapeHtml(mapDirNote)}</span></h3>
+          <div style="font-size:8pt;">${tableHtml(mapHead, mapBody)}</div>
+        </div>`;
+      }
       reportImages.forEach(img => {
-        lampiranHtml += `<div style="page-break-before:always;text-align:center;">
+        lampiranHtml += `<div class="Section2" style="page-break-before:always;text-align:center;">
           <h3>Lampiran - Tube Display Condition - ${escapeHtml(img.label)}</h3>
           <img src="${img.dataUrl}" style="max-width:100%;">
         </div>`;
@@ -1835,7 +1870,7 @@
 
       let docPhotosHtml = '';
       if (docPhotos.length > 0) {
-        docPhotosHtml = `<div style="page-break-before:always;">
+        docPhotosHtml = `<div class="Section1" style="page-break-before:always;">
           <h3 style="text-align:center;">Dokumentasi Pemeriksaan</h3>
           <table style="width:100%;"><tr>` +
           docPhotos.map((p, i) => `<td style="text-align:center;padding:8px;width:50%;"><img src="${p.dataUrl}" style="max-width:100%;max-height:200px;"><div style="font-size:9pt;">${escapeHtml(p.name)}</div></td>` + ((i % 2 === 1) ? '</tr><tr>' : '')).join('') +
@@ -1849,19 +1884,23 @@
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Laporan</title>
 <style>
-  @page { margin: 2cm 2cm 2cm 3cm; }
+  @page Section1 { size: 21cm 29.7cm; margin: 2cm 2cm 2cm 4cm; mso-page-orientation: portrait; }
+  @page Section2 { size: 29.7cm 21cm; margin: 4cm 2cm 2cm 2cm; mso-page-orientation: landscape; }
+  div.Section1 { page: Section1; }
+  div.Section2 { page: Section2; }
   body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1b2733; }
   h1 { text-align:center; }
   h2 { font-size: 13pt; }
   p.justify { text-align: justify; line-height: 1.5; }
   table { border-collapse: collapse; }
   .header-table { width:100%; border-collapse:collapse; margin-bottom:16px; }
-  .header-table td { border:1px solid #14213d; padding:6px; vertical-align:middle; font-size:9pt; }
+  .header-table td { border:1px solid #c3d6d3; background:#f6faf9; padding:6px; vertical-align:middle; font-size:9pt; }
   .cover { page-break-after: always; text-align:center; padding-top:120px; }
 </style>
 </head>
 <body>
 
+  <div class="Section1">
   <div class="cover">
     <h1 style="font-size:22pt;">${escapeHtml(meta.title || 'FINAL REPORT')}</h1>
     <h2>${escapeHtml(meta.subtitle || '')}</h2>
@@ -1918,13 +1957,12 @@
 
   ${rowTablesHtml}
 
-  ${mappingHtml}
-
   <div style="page-break-before:always;">
-    <h2>7. Kesimpulan</h2>
+    <h2>6. Kesimpulan</h2>
     <p class="justify">${escapeHtml(meta.kesimpulan || '-').replace(/\n/g, '<br>')}</p>
-    <h2>8. Saran</h2>
+    <h2>7. Saran</h2>
     <p class="justify">${escapeHtml(meta.saran || '-').replace(/\n/g, '<br>')}</p>
+  </div>
   </div>
 
   ${lampiranHtml}
