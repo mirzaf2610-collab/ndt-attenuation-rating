@@ -716,6 +716,22 @@
     sel.innerHTML = rows.length
       ? rows.map(r => `<option value="${r.id}">Row ${escapeHtml(r.label)}</option>`).join('')
       : '<option value="">-- siapkan Row di Langkah 2 dulu --</option>';
+    updateSideInputLabels();
+  }
+
+  // Sisi Utara/Selatan is only accurate when tube No.1 runs West-East. If the
+  // selected Row's tube No.1 actually points North or South instead, the two
+  // scan sides are really West/East — so relabel the dropdown to match.
+  function updateSideInputLabels() {
+    const sideInputEl = document.getElementById('sideInput');
+    const row = rows.find(r => r.id === document.getElementById('rowSelect').value);
+    const tube1Dir = row ? (row.tube1_direction || 'W') : 'W';
+    const currentVal = sideInputEl.value || 'N';
+    sideInputEl.innerHTML = `
+      <option value="N">${DIR_LABEL_ID[sideActualDir(tube1Dir, 'N')]}</option>
+      <option value="S">${DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')]}</option>
+    `;
+    sideInputEl.value = currentVal;
   }
 
   // ---------- Upload ----------
@@ -730,6 +746,8 @@
   const isRiserInput = document.getElementById('isRiserInput');
   const sideField = document.getElementById('sideField');
   const sideInput = document.getElementById('sideInput');
+
+  rowSelect.addEventListener('change', updateSideInputLabels);
 
   isRiserInput.addEventListener('change', () => {
     tubeNoField.style.display = isRiserInput.checked ? 'none' : '';
