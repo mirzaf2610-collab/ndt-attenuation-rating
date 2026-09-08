@@ -1164,11 +1164,14 @@
     rowSequences.forEach(({ seq }) => {
       seq.forEach(cell => { counts[cell.total] = (counts[cell.total] || 0) + 1; total++; });
     });
+    // Match the exact colours used in the map badges above (NT is darkened
+    // there specifically for readability), not the generic ratingColors.
+    const mappingLegendColors = Object.assign({}, ratingColors, { NT: '#4a5361' });
     document.getElementById('mappingCountsSummary').innerHTML = ['A', 'B1', 'B2', 'C', 'NT'].map(r => {
       const val = counts[r] || 0;
       const pct = total ? (val / total * 100).toFixed(1) : '0.0';
       return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;">
-        <span style="width:10px;height:10px;border-radius:50%;background:${ratingColors[r]};display:inline-block;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:${mappingLegendColors[r]};display:inline-block;"></span>
         <span style="font-weight:600;">${r}</span>
         <span style="color:var(--muted);">${val} tube (${pct}%)</span>
       </div>`;
