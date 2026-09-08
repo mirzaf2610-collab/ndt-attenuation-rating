@@ -96,9 +96,9 @@ router.get('/', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   const byKey = {};
-  let riserTube = null;
+  let riserN = null, riserS = null;
   tubes.forEach((t) => {
-    if (t.is_riser) riserTube = t;
+    if (t.is_riser) { if (t.side === 'S') riserS = t; else riserN = t; }
     else byKey[t.tube_no + '_' + t.side] = t;
   });
   const maxNo = Math.max(row.total_tubes || 0, ...tubes.filter((t) => !t.is_riser).map((t) => t.tube_no), 0);
@@ -111,11 +111,13 @@ router.get('/', async (req, res) => {
   }
 
   if (row.has_riser) {
-    const riserEntry = riserTube || { row_id, tube_no: RISER_TUBE_NO, rating: 'NT', total_points: 0, is_placeholder: true };
-    riserEntry.is_riser = true;
+    const riserEntryN = riserN || { row_id, tube_no: RISER_TUBE_NO, side: 'N', rating: 'NT', total_points: 0, is_placeholder: true };
+    const riserEntryS = riserS || { row_id, tube_no: RISER_TUBE_NO, side: 'S', rating: 'NT', total_points: 0, is_placeholder: true };
+    riserEntryN.is_riser = true;
+    riserEntryS.is_riser = true;
     // riser_position counts tubes, not table rows — each tube now occupies 2 rows (N/S).
     const pos = Math.max(0, Math.min(list.length, (row.riser_position || 0) * 2));
-    list.splice(pos, 0, riserEntry);
+    list.splice(pos, 0, riserEntryN, riserEntryS);
   }
 
   res.json(list);
@@ -150,7 +152,7 @@ router.get('/visual', async (req, res) => {
   const byNo = {};
   let riserTube = null;
   tubes.forEach((t) => {
-    if (t.is_riser) { riserTube = t; return; }
+    if (t.is_riser) { if (t.side === side) riserTube = t; return; }
     if (t.side === side) byNo[t.tube_no] = t;
   });
   const maxNo = Math.max(row.total_tubes || 0, ...tubes.filter((t) => !t.is_riser).map((t) => t.tube_no), 0);
