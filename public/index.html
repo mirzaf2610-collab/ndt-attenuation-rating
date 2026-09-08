@@ -869,16 +869,18 @@
         <div class="stat"><div class="num" style="color:var(--rNT)">${counts.NT}</div><div class="lbl">NT</div></div>
       `;
 
-      let html = `<thead><tr><th>Tube No</th><th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th></tr></thead><tbody>`;
+      let html = `<thead><tr><th>Tube No</th><th>% A</th><th>% B1</th><th>% B2</th><th>% C</th><th style="text-align:center;">Rating</th><th></th></tr></thead><tbody>`;
       rowsToShow.forEach(t => {
         html += `<tr>
           <td>${t.is_riser ? '<b>R</b>' : t.tube_no}</td>
           <td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td>
           <td style="text-align:center;">${ratingPill(t.rating)}</td>
+          <td style="text-align:center;">${t.id ? `<button class="deleteTubeBtn" data-id="${t.id}" style="background:none;border:none;color:var(--rC);cursor:pointer;font-size:11px;font-family:var(--font-mono);">Hapus</button>` : ''}</td>
         </tr>`;
       });
       html += '</tbody>';
       document.getElementById('detailTable').innerHTML = html;
+      wireDeleteButtons();
       return;
     }
 
@@ -935,7 +937,8 @@
 
     function sideCells(t) {
       if (!t) return `<td>NT</td><td>NT</td><td>NT</td><td>NT</td><td style="text-align:center;">${ratingPill('NT')}</td>`;
-      return `<td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td><td style="text-align:center;">${ratingPill(t.rating)}</td>`;
+      const delBtn = t.id ? `<button class="deleteTubeBtn" data-id="${t.id}" style="background:none;border:none;color:var(--rC);cursor:pointer;font-size:9px;font-family:var(--font-mono);margin-left:4px;">×</button>` : '';
+      return `<td>${fmt(t.pct_a)}</td><td>${fmt(t.pct_b1)}</td><td>${fmt(t.pct_b2)}</td><td>${fmt(t.pct_c)}</td><td style="text-align:center;">${ratingPill(t.rating)}${delBtn}</td>`;
     }
 
     renderRows.forEach(r => {
@@ -950,6 +953,17 @@
 
     html += '</tbody>';
     document.getElementById('detailTable').innerHTML = html;
+    wireDeleteButtons();
+  }
+
+  function wireDeleteButtons() {
+    document.querySelectorAll('.deleteTubeBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Hapus data tube ini? Setelah dihapus, statusnya otomatis kembali jadi NT.')) return;
+        await api('/tubes/' + btn.getAttribute('data-id'), { method: 'DELETE' });
+        await refreshAll();
+      });
+    });
   }
 
   // ---------- Visualisasi tube (colour-coded strip, like the report pages) ----------
