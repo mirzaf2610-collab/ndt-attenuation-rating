@@ -247,8 +247,12 @@
 
       <div class="card">
         <h2><span class="step">7</span>Tube Mapping Keseluruhan (Tampak Atas)</h2>
-        <div class="summary-note" style="margin-top:0;">Tiap kolom = No. Tube, tiap baris = Row. Isinya Rating Total (gabungan Utara+Selatan, ambil yang terburuk) per tube. Kolom Riser terpisah di ujung kanan.</div>
-        <div class="table-wrap" style="max-height:none;margin-top:10px;"><table id="tubeMappingTable" class="mapping-table"></table></div>
+        <div class="summary-note" style="margin-top:0;">Tiap kolom = urutan posisi tube (mengikuti urutan asli termasuk Riser), tiap baris = Row. Angka kecil di tiap sel = No. Tube (atau "R" untuk Riser); badge warna = Rating Total (gabungan Utara+Selatan, ambil yang terburuk).</div>
+        <div id="mappingCaptureArea" style="background:#fff;padding:12px;margin-top:10px;">
+          <div id="mappingTitle" style="font-weight:700;font-size:14px;margin-bottom:10px;">Tube Mapping</div>
+          <div class="table-wrap" style="max-height:none;"><table id="tubeMappingTable" class="mapping-table"></table></div>
+        </div>
+        <div class="btn-row"><button class="btn secondary" id="downloadMappingBtn">Download Gambar</button></div>
       </div>
 
       <div class="card">
@@ -1084,12 +1088,13 @@
     document.getElementById('summaryTable').innerHTML = html;
   }
 
-  async function renderTubeMappingGrid() {
-    const maxN = Math.max(0, ...rows.map(r => r.total_tubes || 0));
-    let html = '<thead><tr><th>Row</th>';
-    for (let n = 1; n <= maxN; n++) html += `<th>${n}</th>`;
-    html += '<th>Riser</th></tr></thead><tbody>';
-
+  // Shared data gatherer for the overall tube mapping — reused by the on-screen
+  // grid, the downloadable image, and the PDF/Word report. Riser is spliced
+  // into each row's own sequence at its configured position (not tacked on
+  // at the end), same convention as Result Table / Visualisasi.
+  async function gatherTubeMappingData() {
+    const rowSequences = [];
+    let maxLen = 0;
     for (const row of rows) {
       const tubes = await api('/tubes?row_id=' + row.id);
       const riserN = tubes.find(t => t.is_riser && t.side === 'N');
@@ -1099,25 +1104,53 @@
         if (!byNo[t.tube_no]) byNo[t.tube_no] = {};
         byNo[t.tube_no][t.side] = t;
       });
-
-      html += `<tr><td>Row ${escapeHtml(row.label)}</td>`;
-      for (let n = 1; n <= maxN; n++) {
-        if (n > (row.total_tubes || 0)) { html += '<td></td>'; continue; }
-        const cell = byNo[n] || {};
-        const total = worseRating(cell.N ? cell.N.rating : 'NT', cell.S ? cell.S.rating : 'NT');
-        html += `<td>${ratingPill(total)}</td>`;
-      }
+      const tubeNos = Object.keys(byNo).map(Number).sort((a, b) => a - b);
+      const seq = tubeNos.map(no => ({
+        label: String(no),
+        total: worseRating(byNo[no].N ? byNo[no].N.rating : 'NT', byNo[no].S ? byNo[no].S.rating : 'NT'),
+      }));
       if (row.has_riser) {
-        const riserTotal = worseRating(riserN ? riserN.rating : 'NT', riserS ? riserS.rating : 'NT');
-        html += `<td>${ratingPill(riserTotal)}</td>`;
-      } else {
-        html += '<td style="color:var(--muted);">-</td>';
+        const pos = Math.max(0, Math.min(seq.length, row.riser_position || 0));
+        seq.splice(pos, 0, { label: 'R', total: worseRating(riserN ? riserN.rating : 'NT', riserS ? riserS.rating : 'NT'), isRiser: true });
+      }
+      const tube1Dir = row.tube1_direction || 'W';
+      const oppositeDir = DEG_DIR[addDeg(DIR_DEG[tube1Dir], 180)];
+      rowSequences.push({ row, seq, tube1Label: DIR_LABEL_ID[tube1Dir], oppositeLabel: DIR_LABEL_ID[oppositeDir] });
+      maxLen = Math.max(maxLen, seq.length);
+    }
+    return { rowSequences, maxLen };
+  }
+
+  async function renderTubeMappingGrid() {
+    document.getElementById('mappingTitle').textContent = 'Tube Mapping - ' + currentPlant.name;
+    const { rowSequences, maxLen } = await gatherTubeMappingData();
+    let html = '<thead><tr><th>Row</th>';
+    for (let i = 1; i <= maxLen; i++) html += `<th>${i}</th>`;
+    html += '</tr></thead><tbody>';
+
+    rowSequences.forEach(({ row, seq, tube1Label, oppositeLabel }) => {
+      html += `<tr><td>Row ${escapeHtml(row.label)}<br><span style="font-size:9px;color:var(--muted);font-weight:400;">${escapeHtml(tube1Label)} &rarr; ${escapeHtml(oppositeLabel)}</span></td>`;
+      for (let i = 0; i < maxLen; i++) {
+        const cell = seq[i];
+        if (!cell) { html += '<td></td>'; continue; }
+        html += `<td><div style="font-size:8.5px;color:var(--muted);line-height:1.3;">${cell.isRiser ? '<b>R</b>' : cell.label}</div>${ratingPill(cell.total)}</td>`;
       }
       html += '</tr>';
-    }
+    });
     html += '</tbody>';
     document.getElementById('tubeMappingTable').innerHTML = html;
   }
+
+  document.getElementById('downloadMappingBtn').addEventListener('click', () => {
+    html2canvas(document.getElementById('mappingCaptureArea'), { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+      const a = document.createElement('a');
+      a.download = 'tube_mapping_' + currentPlant.name.replace(/\s+/g, '_') + '.png';
+      a.href = canvas.toDataURL('image/png');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  });
 
   function ratingPill(rating) {
     if (!rating) return '<span class="rating-pill rating-NT">-</span>';
@@ -1410,9 +1443,10 @@
         tableWidth: 'auto',
         didParseCell: (data) => {
           if (data.section === 'body') {
-            const val = String(data.cell.raw).trim();
-            if (ratingColorsRGB[val]) {
-              data.cell.styles.textColor = ratingColorsRGB[val];
+            const raw = String(data.cell.raw);
+            const lastLine = raw.split('\n').pop().trim();
+            if (ratingColorsRGB[lastLine]) {
+              data.cell.styles.textColor = ratingColorsRGB[lastLine];
               data.cell.styles.fontStyle = 'bold';
             }
           }
@@ -1521,17 +1555,47 @@
         doc.autoTable(Object.assign({}, gridTableStyle, { startY: y, head, body }));
       }
 
+      // ---- Page: Tube Mapping Keseluruhan (landscape, still has header) ----
+      {
+        const mapData = await gatherTubeMappingData();
+        doc.addPage('a4', 'landscape');
+        pageW = doc.internal.pageSize.getWidth();
+        pageH = doc.internal.pageSize.getHeight();
+        y = addPageHeader();
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+        doc.text('6. Tube Mapping Keseluruhan (Tampak Atas)', mLeft, y);
+        y += 12;
+        const mapHead = [['Row', ...Array.from({ length: mapData.maxLen }, (_, i) => String(i + 1))]];
+        const mapBody = mapData.rowSequences.map(({ row, seq, tube1Label, oppositeLabel }) => {
+          const cells = [];
+          for (let i = 0; i < mapData.maxLen; i++) {
+            const c = seq[i];
+            cells.push(c ? (c.label + '\n' + c.total) : '');
+          }
+          return ['Row ' + row.label + '\n(' + tube1Label + '\u2192' + oppositeLabel + ')', ...cells];
+        });
+        doc.autoTable(Object.assign({}, gridTableStyle, {
+          startY: y,
+          head: mapHead,
+          body: mapBody,
+          styles: Object.assign({}, gridTableStyle.styles, { fontSize: 6.5, cellPadding: 1.5 }),
+          columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 55 } },
+        }));
+      }
+
       // ---- Page: Kesimpulan & Saran ----
       doc.addPage();
+      pageW = doc.internal.pageSize.getWidth();
+      pageH = doc.internal.pageSize.getHeight();
       y = addPageHeader();
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-      doc.text('6. Kesimpulan', mLeft, y); y += 18;
+      doc.text('7. Kesimpulan', mLeft, y); y += 18;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
       y = addJustified(meta.kesimpulan, mLeft, y, pageW - mLeft - mRight, 14);
 
       y += 20;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-      doc.text('7. Saran', mLeft, y); y += 18;
+      doc.text('8. Saran', mLeft, y); y += 18;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
       addJustified(meta.saran, mLeft, y, pageW - mLeft - mRight, 14);
 
@@ -1644,6 +1708,21 @@
         </div>`;
       }
 
+      const mapData = await gatherTubeMappingData();
+      const mapHead = [['Row', ...Array.from({ length: mapData.maxLen }, (_, i) => String(i + 1))]];
+      const mapBody = mapData.rowSequences.map(({ row, seq, tube1Label, oppositeLabel }) => {
+        const cells = [];
+        for (let i = 0; i < mapData.maxLen; i++) {
+          const c = seq[i];
+          cells.push(c ? (c.label + ' / ' + c.total) : '');
+        }
+        return ['Row ' + row.label + ' (' + tube1Label + ' \u2192 ' + oppositeLabel + ')', ...cells];
+      });
+      const mappingHtml = `<div style="page-break-before:always;">
+        <h3>6. Tube Mapping Keseluruhan (Tampak Atas)</h3>
+        <div style="font-size:8pt;">${tableHtml(mapHead, mapBody)}</div>
+      </div>`;
+
       let lampiranHtml = '';
       reportImages.forEach(img => {
         lampiranHtml += `<div style="page-break-before:always;text-align:center;">
@@ -1737,10 +1816,12 @@
 
   ${rowTablesHtml}
 
+  ${mappingHtml}
+
   <div style="page-break-before:always;">
-    <h2>6. Kesimpulan</h2>
+    <h2>7. Kesimpulan</h2>
     <p class="justify">${escapeHtml(meta.kesimpulan || '-').replace(/\n/g, '<br>')}</p>
-    <h2>7. Saran</h2>
+    <h2>8. Saran</h2>
     <p class="justify">${escapeHtml(meta.saran || '-').replace(/\n/g, '<br>')}</p>
   </div>
 
