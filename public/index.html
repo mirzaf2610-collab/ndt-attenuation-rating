@@ -116,17 +116,32 @@
 </head>
 <body>
 
-<header>
+<div id="loginScreen" style="display:none;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:32px 30px;width:100%;max-width:340px;box-shadow:0 1px 2px rgba(14,27,36,.04);position:relative;">
+    <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--cyan),transparent 85%);border-radius:6px 0 0 6px;"></div>
+    <h1 style="font-size:18px;margin:0 0 4px;">Attenuation Calculator</h1>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 22px;">Login untuk mengakses — hubungi admin kalau belum punya akun.</p>
+    <div class="field" style="margin-bottom:14px;"><label>Email</label><input type="email" id="loginEmail" placeholder="nama@email.com"></div>
+    <div class="field" style="margin-bottom:18px;"><label>Password</label><input type="password" id="loginPassword" placeholder="••••••••"></div>
+    <button class="btn" id="loginBtn" style="width:100%;">Masuk</button>
+    <div id="loginError" style="color:var(--rC);font-size:12px;margin-top:12px;font-family:var(--font-mono);"></div>
+  </div>
+</div>
+
+<header id="mainHeader" style="display:none;">
   <h1>Attenuation Calculator</h1>
   <p>Upload file hasil export OmniPC satu per satu (satu file = satu tube). Data tersimpan di database per pabrik/reformer, jadi bisa diakses lagi kapan pun.</p>
   <div class="plant-bar" id="plantBar" style="display:none;">
     <select id="plantSelect"></select>
     <button id="newPlantBtn">+ Pabrik Baru</button>
     <button id="deletePlantBtn" style="background:transparent;border:1px solid #d13c3c;color:#d13c3c;">Hapus Pabrik Ini</button>
+    <span style="flex:1;"></span>
+    <span id="loggedInAs" style="font-size:12px;color:var(--muted);font-family:var(--font-mono);"></span>
+    <button id="logoutBtn" style="background:transparent;border:1px solid var(--line-bright);color:var(--muted);">Logout</button>
   </div>
 </header>
 
-<main>
+<main id="mainContent">
 
   <div class="card" id="noPlant">
     <h2><span class="step">0</span>Buat Pabrik / Reformer Pertama</h2>
@@ -352,6 +367,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
   const API = '/api';
@@ -402,14 +418,76 @@
   const emptyRowsCard = document.getElementById('emptyRowsCard');
   const resultsSection = document.getElementById('resultsSection');
 
+  let authClient = null;
+  let authSession = null;
+
   async function api(path, opts) {
-    const res = await fetch(API + path, opts);
+    opts = opts || {};
+    const headers = Object.assign({}, opts.headers || {});
+    if (authSession) headers['Authorization'] = 'Bearer ' + authSession.access_token;
+    const res = await fetch(API + path, Object.assign({}, opts, { headers }));
+    if (res.status === 401) {
+      showLogin('Sesi berakhir, silakan login lagi.');
+      throw new Error('Unauthorized');
+    }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || res.statusText);
     }
     if (res.status === 204) return null;
     return res.json();
+  }
+
+  function showLogin(errorMsg) {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainHeader').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('loginError').textContent = errorMsg || '';
+  }
+
+  function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainHeader').style.display = 'block';
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('loggedInAs').textContent = authSession && authSession.user ? authSession.user.email : '';
+  }
+
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    if (!email || !password) { errEl.textContent = 'Isi email dan password dulu.'; return; }
+    errEl.textContent = 'Memproses...';
+    const { data, error } = await authClient.auth.signInWithPassword({ email, password });
+    if (error) { errEl.textContent = 'Login gagal: ' + error.message; return; }
+    authSession = data.session;
+    showApp();
+    await init();
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await authClient.auth.signOut();
+    authSession = null;
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    showLogin('');
+  });
+
+  async function bootstrapAuth() {
+    const cfg = await fetch('/config').then(r => r.json());
+    authClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    const { data } = await authClient.auth.getSession();
+    authSession = data.session;
+    authClient.auth.onAuthStateChange((event, session) => {
+      authSession = session;
+      if (!session) showLogin('');
+    });
+    if (authSession) {
+      showApp();
+      await init();
+    } else {
+      showLogin('');
+    }
   }
 
   // ---------- Bootstrap ----------
@@ -1985,8 +2063,8 @@
     btn.textContent = 'Generate Word (.doc)';
   });
 
-  init().catch(err => {
-    document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#b23b3b;">Gagal memuat data: ' + escapeHtml(err.message) + '. Cek koneksi Supabase di server (lihat README).</p>';
+  bootstrapAuth().catch(err => {
+    document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif;color:#b23b3b;">Gagal memuat: ' + escapeHtml(err.message) + '.</p>';
   });
 })();
 </script>
