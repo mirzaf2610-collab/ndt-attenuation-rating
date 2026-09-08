@@ -1364,18 +1364,36 @@
   function fmt(n) { return (n === null || n === undefined) ? 'NT' : Number(n).toFixed(2); }
   function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-  document.getElementById('downloadVisualBtn').addEventListener('click', () => {
+  // Temporarily forces the inner .visual-scroll to its full content width
+  // (not just what's visible on screen) before an html2canvas capture, then
+  // restores it — otherwise only the currently-scrolled-into-view columns
+  // get captured, cutting off tubes past the edge of the screen.
+  async function captureCaptureArea() {
     const target = document.getElementById('captureArea');
+    const scrollBox = document.getElementById('visualScroll');
+    const prevOverflow = scrollBox.style.overflow;
+    const prevMaxWidth = scrollBox.style.maxWidth;
+    const prevWidth = scrollBox.style.width;
+    scrollBox.style.overflow = 'visible';
+    scrollBox.style.maxWidth = 'none';
+    scrollBox.style.width = scrollBox.scrollWidth + 'px';
+    const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 2 });
+    scrollBox.style.overflow = prevOverflow;
+    scrollBox.style.maxWidth = prevMaxWidth;
+    scrollBox.style.width = prevWidth;
+    return canvas;
+  }
+
+  document.getElementById('downloadVisualBtn').addEventListener('click', async () => {
     const activeRowObj = rows.find(r => r.id === activeRowId);
     const rowLabel = activeRowObj ? activeRowObj.label : 'row';
-    html2canvas(target, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
-      const a = document.createElement('a');
-      a.download = `tube_display_condition_row_${rowLabel}_${activeSide}.png`;
-      a.href = canvas.toDataURL('image/png');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
+    const canvas = await captureCaptureArea();
+    const a = document.createElement('a');
+    a.download = `tube_display_condition_row_${rowLabel}_${activeSide}.png`;
+    a.href = canvas.toDataURL('image/png');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   });
 
   // ---------- Report ----------
@@ -1400,16 +1418,14 @@
     });
   }
 
-  document.getElementById('addToReportBtn').addEventListener('click', () => {
-    const target = document.getElementById('captureArea');
+  document.getElementById('addToReportBtn').addEventListener('click', async () => {
     const activeRowObj = rows.find(r => r.id === activeRowId);
     const rowLabel = activeRowObj ? activeRowObj.label : '?';
     const tube1Dir = activeRowObj ? (activeRowObj.tube1_direction || 'W') : 'W';
     const sideLabel = DIR_LABEL_ID[sideActualDir(tube1Dir, activeSide)];
-    html2canvas(target, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
-      reportImages.push({ label: 'Row ' + rowLabel + ' - Sisi ' + sideLabel, dataUrl: canvas.toDataURL('image/png') });
-      renderReportImagesList();
-    });
+    const canvas = await captureCaptureArea();
+    reportImages.push({ label: 'Row ' + rowLabel + ' - Sisi ' + sideLabel, dataUrl: canvas.toDataURL('image/png') });
+    renderReportImagesList();
   });
 
   // ---- Dokumentasi Pemeriksaan photo upload ----
