@@ -1189,16 +1189,18 @@
     scrollBox.style.width = table.scrollWidth + 'px';
 
     const tableCanvas = await html2canvas(table, { backgroundColor: '#ffffff', scale: 2 });
+    const summaryCanvas = await html2canvas(document.getElementById('mappingCountsSummary'), { backgroundColor: '#ffffff', scale: 2 });
 
     scrollBox.style.overflow = prevOverflow;
     scrollBox.style.maxHeight = prevMaxHeight;
     scrollBox.style.width = prevWidth;
 
-    // Composite the title + direction note above the captured table.
-    const pad = 24, headerH = 70;
+    // Composite: title + direction note, then the table, then the counts summary.
+    const pad = 24, headerH = 70, gapBeforeSummary = 20;
+    const contentWidth = Math.max(tableCanvas.width, summaryCanvas.width);
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = tableCanvas.width + pad * 2;
-    finalCanvas.height = tableCanvas.height + headerH + pad * 2;
+    finalCanvas.width = contentWidth + pad * 2;
+    finalCanvas.height = headerH + tableCanvas.height + gapBeforeSummary + summaryCanvas.height + pad * 2;
     const ctx = finalCanvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
@@ -1211,6 +1213,7 @@
     ctx.font = '22px sans-serif';
     ctx.fillText(document.getElementById('mappingDirNote').textContent, pad, pad + 32);
     ctx.drawImage(tableCanvas, pad, headerH + pad);
+    ctx.drawImage(summaryCanvas, pad, headerH + pad + tableCanvas.height + gapBeforeSummary);
 
     const a = document.createElement('a');
     a.download = 'tube_mapping_' + currentPlant.name.replace(/\s+/g, '_') + '.png';
