@@ -243,7 +243,7 @@
             <div id="captureSubtitle" style="font-size:12.5px;color:var(--muted);"></div>
           </div>
           <div class="visual-wrap">
-            <div style="flex:0 1 auto;min-width:0;max-width:100%;">
+            <div id="visualScrollWrapper" style="flex:0 1 auto;min-width:0;max-width:100%;">
               <div class="visual-scroll" id="visualScroll"></div>
               <div class="visual-dir-row" id="visualDirRow"></div>
             </div>
@@ -1371,16 +1371,41 @@
   async function captureCaptureArea() {
     const target = document.getElementById('captureArea');
     const scrollBox = document.getElementById('visualScroll');
-    const prevOverflow = scrollBox.style.overflow;
-    const prevMaxWidth = scrollBox.style.maxWidth;
-    const prevWidth = scrollBox.style.width;
+    const wrapperBox = document.getElementById('visualScrollWrapper');
+    const fullWidth = scrollBox.scrollWidth; // true content width, regardless of current overflow/scroll state
+
+    const prevScrollOverflow = scrollBox.style.overflow;
+    const prevScrollMaxWidth = scrollBox.style.maxWidth;
+    const prevScrollWidth = scrollBox.style.width;
+    const prevWrapperMaxWidth = wrapperBox.style.maxWidth;
+    const prevWrapperWidth = wrapperBox.style.width;
+    const prevTargetWidth = target.style.width;
+    const prevTargetMaxWidth = target.style.maxWidth;
+
+    // 1) Let the inner scroll box actually BE its full content width instead
+    //    of clipping/scrolling it.
     scrollBox.style.overflow = 'visible';
     scrollBox.style.maxWidth = 'none';
-    scrollBox.style.width = scrollBox.scrollWidth + 'px';
+    scrollBox.style.width = fullWidth + 'px';
+    // 2) Its immediate wrapper caps at max-width:100% (needed on-screen to
+    //    avoid a gap before the legend) — lift that too during capture.
+    wrapperBox.style.maxWidth = 'none';
+    wrapperBox.style.width = fullWidth + 'px';
+    // 3) The outer card (captureArea) still won't grow past its own box
+    //    just because a child overflows — force IT to size to its content
+    //    too, otherwise html2canvas still clips to the old narrow box.
+    target.style.maxWidth = 'none';
+    target.style.width = 'max-content';
+
     const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 2 });
-    scrollBox.style.overflow = prevOverflow;
-    scrollBox.style.maxWidth = prevMaxWidth;
-    scrollBox.style.width = prevWidth;
+
+    scrollBox.style.overflow = prevScrollOverflow;
+    scrollBox.style.maxWidth = prevScrollMaxWidth;
+    scrollBox.style.width = prevScrollWidth;
+    wrapperBox.style.maxWidth = prevWrapperMaxWidth;
+    wrapperBox.style.width = prevWrapperWidth;
+    target.style.width = prevTargetWidth;
+    target.style.maxWidth = prevTargetMaxWidth;
     return canvas;
   }
 
