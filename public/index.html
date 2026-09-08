@@ -824,11 +824,6 @@
   const ratingColors = {
     A: '#1d6fd6', B1: '#1c9e6b', B2: '#d98a12', C: '#d13c3c', NT: '#8a94a3',
   };
-  // Pastel circle-fill colours (same as the .rating-X badge backgrounds) —
-  // used for any legend dot / swatch so it matches the actual rating
-  // circles shown elsewhere, not the darker text colour.
-  const ratingCircleColors = { A: '#e6f0fd', B1: '#e5f7ef', B2: '#fdf1de', C: '#fbe6e6', NT: '#eef0f3' };
-  const ratingCircleBorders = { A: '#1d6fd6', B1: '#1c9e6b', B2: '#d98a12', C: '#d13c3c', NT: '#4a5361' };
 
   // Colour scale sampled directly from the OmniScan MX2 "% Amplitude" legend
   // used in the report, so tube visuals match it exactly (not a generic jet scale).
@@ -1017,7 +1012,7 @@
       const val = counts[r] || 0;
       const pct = total ? (val / total * 100).toFixed(1) : '0.0';
       return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
-        <span style="width:10px;height:10px;border-radius:50%;background:${ratingCircleColors[r]};border:1.5px solid ${ratingCircleBorders[r]};display:inline-block;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:${ratingColors[r]};display:inline-block;"></span>
         <span style="width:26px;font-weight:600;">${r}</span>
         <span style="color:var(--muted);">${val} tube (${pct}%)</span>
       </div>`;
@@ -1175,7 +1170,7 @@
       const val = counts[r] || 0;
       const pct = total ? (val / total * 100).toFixed(1) : '0.0';
       return `<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;">
-        <span style="width:10px;height:10px;border-radius:50%;background:${ratingCircleColors[r]};border:1.5px solid ${ratingCircleBorders[r]};display:inline-block;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:${ratingColors[r]};display:inline-block;"></span>
         <span style="font-weight:600;">${r}</span>
         <span style="color:var(--muted);">${val} tube (${pct}%)</span>
       </div>`;
@@ -1615,10 +1610,8 @@
       ['A', 'B1', 'B2', 'C', 'NT'].forEach(r => {
         const val = overallCounts[r] || 0;
         const pct = summaryData.totalTubes ? (val / summaryData.totalTubes * 100).toFixed(1) : '0.0';
-        doc.setFillColor(ratingCircleColors[r]);
-        doc.setDrawColor(ratingCircleBorders[r]);
-        doc.setLineWidth(0.8);
-        doc.rect(mLeft + 150, ly - 8, 8, 8, 'FD');
+        doc.setFillColor(ratingColors[r]);
+        doc.rect(mLeft + 150, ly - 8, 8, 8, 'F');
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
         doc.text(r + ' : ' + val + ' tube (' + pct + '%)', mLeft + 165, ly);
         ly += 16;
@@ -1903,7 +1896,7 @@
       ${['A','B1','B2','C','NT'].map(r => {
         const val = overallCounts[r] || 0;
         const pct = summaryData.totalTubes ? (val / summaryData.totalTubes * 100).toFixed(1) : '0.0';
-        return `<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ratingCircleColors[r]};border:1.5px solid ${ratingCircleBorders[r]};"></span> ${r} : ${val} tube (${pct}%)</div>`;
+        return `<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ratingColors[r]};"></span> ${r} : ${val} tube (${pct}%)</div>`;
       }).join('')}
     </td>
   </tr></table>
