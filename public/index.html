@@ -105,7 +105,11 @@
   .visual-col .tube-rating{margin-top:4px;font-size:9px;font-weight:700;padding:1px 4px;border-radius:8px;font-family:var(--font-mono);}
   .visual-legend{display:flex;align-items:stretch;gap:6px;flex-shrink:0;padding:14px 10px 6px 6px;border:1px solid var(--line);border-left:none;border-radius:0 6px 6px 0;background:var(--card-2);}
   .visual-legend-labels{display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--muted);padding:1px 0;font-family:var(--font-mono);}
-  .visual-legend-caption{writing-mode:vertical-rl;font-size:10.5px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;justify-content:center;margin-left:2px;font-family:var(--font-mono);}
+  /* Rotated via transform instead of writing-mode: html2canvas renders CSS
+     transforms correctly but has long-standing bugs with vertical writing
+     modes (text gets re-wrapped/garbled on capture). */
+  .visual-legend-caption{width:16px;display:flex;align-items:center;justify-content:center;margin-left:2px;overflow:visible;}
+  .visual-legend-caption span{display:inline-block;white-space:nowrap;font-size:10.5px;color:var(--muted);font-family:var(--font-mono);transform:rotate(-90deg);}
   .iso-scene{transform:perspective(1400px) rotateX(55deg) rotateZ(-25deg);transform-origin:center;display:flex;gap:4px;align-items:flex-end;width:max-content;}
   textarea{resize:vertical;font-family:var(--font-sans);}
   .report-img-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;}
@@ -294,7 +298,7 @@
                 <span>100</span><span>90</span><span>80</span><span>70</span><span>60</span>
                 <span>50</span><span>40</span><span>30</span><span>20</span><span>10</span><span>0 %</span>
               </div>
-              <div class="visual-legend-caption">Persentase Ketinggian Amplitudo</div>
+              <div class="visual-legend-caption"><span>Persentase Ketinggian Amplitudo</span></div>
             </div>
           </div>
         </div>
@@ -1243,13 +1247,20 @@
       ctx.fillStyle = amplitudeColor(pct);
       ctx.fillRect(0, y, w, 1);
     }
-    // Scale tick lines at each 10% mark, like the reference legend.
+    // Scale tick marks, stubs on the label side (right edge) rather than
+    // full-width lines cutting across the gradient. Major ticks every 10%
+    // (half the legend width), minor ticks every 2% (shorter, skipping the
+    // positions already covered by a major tick).
+    const majorTickLen = w / 2;
+    const minorTickLen = w / 4;
     ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.lineWidth = 1;
-    for (let p = 0; p <= 100; p += 10) {
-      const y = Math.round((1 - p / 100) * (h - 1));
+    for (let p = 0; p <= 100; p += 2) {
+      const isMajor = p % 10 === 0;
+      const tickLen = isMajor ? majorTickLen : minorTickLen;
+      const y = Math.round((1 - p / 100) * (h - 1)) + 0.5;
       ctx.beginPath();
-      ctx.moveTo(0, y);
+      ctx.moveTo(w - tickLen, y);
       ctx.lineTo(w, y);
       ctx.stroke();
     }
