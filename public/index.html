@@ -203,24 +203,29 @@
       <div class="grid-settings" style="margin-bottom:14px;max-width:340px;">
         <div class="field"><label>Row</label><select id="rowSelect"></select></div>
         <div class="field" id="tubeNoField"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
-        <div class="field" id="sideField">
-          <label>Sisi</label>
-          <select id="sideInput">
-            <option value="N">Utara</option>
-            <option value="S">Selatan</option>
-          </select>
-        </div>
       </div>
       <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-bottom:14px;">
-        <input type="checkbox" id="isRiserInput"> Ini file untuk tube Riser (No Tube diabaikan, Sisi tetap dipilih)
+        <input type="checkbox" id="isRiserInput"> Ini untuk tube Riser (No Tube diabaikan)
       </label>
-      <div class="summary-note" style="margin-top:-6px;margin-bottom:14px;">1 tube bisa punya sampai 2 data — sisi Utara dan Selatan — masing-masing diupload terpisah dan independen (boleh salah satu saja, dua-duanya, atau tidak sama sekali).</div>
-      <div class="dropzone" id="dropzone">
-        <div><strong>Klik untuk pilih file</strong> atau drag &amp; drop file .txt/.csv hasil OmniPC di sini</div>
-        <div style="margin-top:4px;font-size:12px;">Isi dulu Row &amp; No Tube di atas, pilih file, lalu klik Submit.</div>
+      <div class="summary-note" style="margin-top:-6px;margin-bottom:14px;">Isi salah satu kotak saja, dua-duanya sekaligus, atau kosongkan yang tidak ada datanya — lalu klik Submit satu kali.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <div class="dropzone" id="dropzoneN">
+            <div><strong id="dropzoneNLabel">Klik untuk pilih file — Sisi Utara</strong></div>
+            <div style="margin-top:4px;font-size:12px;">.txt/.csv hasil OmniPC</div>
+          </div>
+          <input type="file" id="fileInputN" accept=".txt,.csv">
+          <div class="upload-status" id="pendingFileStatusN"></div>
+        </div>
+        <div>
+          <div class="dropzone" id="dropzoneS">
+            <div><strong id="dropzoneSLabel">Klik untuk pilih file — Sisi Selatan</strong></div>
+            <div style="margin-top:4px;font-size:12px;">.txt/.csv hasil OmniPC</div>
+          </div>
+          <input type="file" id="fileInputS" accept=".txt,.csv">
+          <div class="upload-status" id="pendingFileStatusS"></div>
+        </div>
       </div>
-      <input type="file" id="fileInput" accept=".txt,.csv">
-      <div class="upload-status" id="pendingFileStatus"></div>
       <div class="btn-row"><button class="btn" id="submitBtn" disabled>Submit / Tambah ke Tabel</button></div>
       <div class="upload-status" id="uploadStatus"></div>
     </div>
@@ -727,29 +732,22 @@
   // selected Row's tube No.1 actually points North or South instead, the two
   // scan sides are really West/East — so relabel the dropdown to match.
   function updateSideInputLabels() {
-    const sideInputEl = document.getElementById('sideInput');
     const row = rows.find(r => r.id === document.getElementById('rowSelect').value);
     const tube1Dir = row ? (row.tube1_direction || 'W') : 'W';
-    const currentVal = sideInputEl.value || 'N';
-    sideInputEl.innerHTML = `
-      <option value="N">${DIR_LABEL_ID[sideActualDir(tube1Dir, 'N')]}</option>
-      <option value="S">${DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')]}</option>
-    `;
-    sideInputEl.value = currentVal;
+    document.getElementById('dropzoneNLabel').textContent = 'Klik untuk pilih file — Sisi ' + DIR_LABEL_ID[sideActualDir(tube1Dir, 'N')];
+    document.getElementById('dropzoneSLabel').textContent = 'Klik untuk pilih file — Sisi ' + DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')];
   }
 
   // ---------- Upload ----------
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const pendingFileStatus = document.getElementById('pendingFileStatus');
   const submitBtn = document.getElementById('submitBtn');
   const uploadStatus = document.getElementById('uploadStatus');
   const rowSelect = document.getElementById('rowSelect');
   const tubeNoInput = document.getElementById('tubeNoInput');
   const tubeNoField = document.getElementById('tubeNoField');
   const isRiserInput = document.getElementById('isRiserInput');
-  const sideField = document.getElementById('sideField');
-  const sideInput = document.getElementById('sideInput');
+
+  let pendingFileN = null;
+  let pendingFileS = null;
 
   rowSelect.addEventListener('change', updateSideInputLabels);
 
@@ -757,54 +755,61 @@
     tubeNoField.style.display = isRiserInput.checked ? 'none' : '';
   });
 
-  dropzone.addEventListener('click', () => fileInput.click());
-  ['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
-  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
-  dropzone.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
-  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
-
-  function handleFile(file) {
-    pendingFile = file || null;
-    pendingFileStatus.textContent = pendingFile ? 'File dipilih: ' + pendingFile.name : '';
-    submitBtn.disabled = !pendingFile;
+  function setupDropzone(side) {
+    const dropzone = document.getElementById('dropzone' + side);
+    const fileInput = document.getElementById('fileInput' + side);
+    const statusEl = document.getElementById('pendingFileStatus' + side);
+    dropzone.addEventListener('click', () => fileInput.click());
+    ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+    function handle(file) {
+      if (side === 'N') pendingFileN = file || null; else pendingFileS = file || null;
+      statusEl.textContent = file ? 'File dipilih: ' + file.name : '';
+      submitBtn.disabled = !pendingFileN && !pendingFileS;
+    }
+    dropzone.addEventListener('drop', e => handle(e.dataTransfer.files[0]));
+    fileInput.addEventListener('change', e => handle(e.target.files[0]));
   }
+  setupDropzone('N');
+  setupDropzone('S');
 
   submitBtn.addEventListener('click', async () => {
-    if (!pendingFile || !currentPlant) return;
+    if ((!pendingFileN && !pendingFileS) || !currentPlant) return;
     const row = rows.find(r => r.id === rowSelect.value);
     const isRiser = isRiserInput.checked;
     const tubeNo = isRiser ? null : parseInt(tubeNoInput.value, 10);
-    const side = sideInput.value;
     if (!row) return alert('Siapkan Row-nya dulu di Langkah 2.');
     if (!isRiser && isNaN(tubeNo)) return alert('Isi No Tube dulu.');
 
     submitBtn.disabled = true;
-    uploadStatus.textContent = 'Memproses...';
-    try {
-      const form = new FormData();
-      form.append('file', pendingFile);
-      form.append('row_id', row.id);
-      form.append('side', side);
-      if (isRiser) {
-        form.append('is_riser', 'true');
-      } else {
-        form.append('tube_no', tubeNo);
+    const results = [];
+    for (const [side, file] of [['N', pendingFileN], ['S', pendingFileS]]) {
+      if (!file) continue;
+      uploadStatus.textContent = 'Memproses sisi ' + (side === 'N' ? document.getElementById('dropzoneNLabel').textContent : document.getElementById('dropzoneSLabel').textContent) + '...';
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('row_id', row.id);
+        form.append('side', side);
+        if (isRiser) form.append('is_riser', 'true'); else form.append('tube_no', tubeNo);
+        await api('/tubes', { method: 'POST', body: form });
+        results.push(side + ':ok');
+      } catch (err) {
+        results.push(side + ':gagal (' + err.message + ')');
       }
-      await api('/tubes', { method: 'POST', body: form });
-
-      activeRowId = row.id;
-      const sideLabel = side === 'S' ? 'Selatan' : 'Utara';
-      uploadStatus.textContent = isRiser
-        ? 'Tube Riser (' + sideLabel + ') di Row ' + row.label + ' tersimpan.'
-        : 'Tube ' + tubeNo + ' (' + sideLabel + ') di Row ' + row.label + ' tersimpan.';
-      setTimeout(() => { uploadStatus.textContent = ''; }, 2500);
-    } catch (err) {
-      uploadStatus.textContent = 'Gagal: ' + err.message;
     }
+    uploadStatus.textContent = isRiser
+      ? 'Tube Riser di Row ' + row.label + ' — ' + results.join(', ')
+      : 'Tube ' + tubeNo + ' di Row ' + row.label + ' — ' + results.join(', ');
+    setTimeout(() => { uploadStatus.textContent = ''; }, 3500);
 
-    pendingFile = null;
-    fileInput.value = '';
-    pendingFileStatus.textContent = '';
+    activeRowId = row.id;
+    pendingFileN = null;
+    pendingFileS = null;
+    document.getElementById('fileInputN').value = '';
+    document.getElementById('fileInputS').value = '';
+    document.getElementById('pendingFileStatusN').textContent = '';
+    document.getElementById('pendingFileStatusS').textContent = '';
     submitBtn.disabled = true;
     await refreshAll();
   });
