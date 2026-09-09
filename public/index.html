@@ -755,6 +755,38 @@
     tubeNoField.style.display = isRiserInput.checked ? 'none' : '';
   });
 
+  // Reads a file's OmniPC metadata ("Data File = P2B ROW A NO 2") or, failing
+  // that, its filename, to guess the Row & Tube No — purely a convenience
+  // pre-fill; the fields stay editable so a wrong guess is easy to fix.
+  function parseIdentityFromFile(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = String(e.target.result || '');
+        const metaMatch = text.match(/Data File\s*=\s*(.+)/i);
+        const source = metaMatch ? metaMatch[1] : '';
+        const candidates = [source, file.name.replace(/[_-]+/g, ' ')];
+        for (const c of candidates) {
+          const m = c.match(/ROW[\s_]*([A-Za-z0-9]+)[\s_]*(?:NO\.?|TUBE)[\s_]*#?\s*(\d+)/i);
+          if (m) { resolve({ rowLabel: m[1].toUpperCase(), tubeNo: parseInt(m[2], 10) }); return; }
+        }
+        resolve(null);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    });
+  }
+
+  function applyDetectedIdentity(identity) {
+    if (!identity) return;
+    if (!isRiserInput.checked) {
+      const match = rows.find(r => r.label === identity.rowLabel);
+      if (match) rowSelect.value = match.id;
+      if (!isNaN(identity.tubeNo)) tubeNoInput.value = identity.tubeNo;
+      updateSideInputLabels();
+    }
+  }
+
   function setupDropzone(side) {
     const dropzone = document.getElementById('dropzone' + side);
     const fileInput = document.getElementById('fileInput' + side);
@@ -762,10 +794,11 @@
     dropzone.addEventListener('click', () => fileInput.click());
     ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
     ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
-    function handle(file) {
+    async function handle(file) {
       if (side === 'N') pendingFileN = file || null; else pendingFileS = file || null;
       statusEl.textContent = file ? 'File dipilih: ' + file.name : '';
       submitBtn.disabled = !pendingFileN && !pendingFileS;
+      if (file) applyDetectedIdentity(await parseIdentityFromFile(file));
     }
     dropzone.addEventListener('drop', e => handle(e.dataTransfer.files[0]));
     fileInput.addEventListener('change', e => handle(e.target.files[0]));
