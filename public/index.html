@@ -200,34 +200,67 @@
 
     <div class="card">
       <h2><span class="step">3</span>Upload File Tube</h2>
-      <div class="grid-settings" style="margin-bottom:14px;max-width:340px;">
-        <div class="field"><label>Row</label><select id="rowSelect"></select></div>
-        <div class="field" id="tubeNoField"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
+      <div class="tabs" id="uploadModeTabs" style="margin-bottom:16px;">
+        <div class="tab active" data-mode="single">Upload Satu-satu</div>
+        <div class="tab" data-mode="bulk">Upload Sekaligus (per Sisi)</div>
       </div>
-      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-bottom:14px;">
-        <input type="checkbox" id="isRiserInput"> Ini untuk tube Riser (No Tube diabaikan)
-      </label>
-      <div class="summary-note" style="margin-top:-6px;margin-bottom:14px;">Isi salah satu kotak saja, dua-duanya sekaligus, atau kosongkan yang tidak ada datanya — lalu klik Submit satu kali.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-        <div>
-          <div class="dropzone" id="dropzoneN">
-            <div><strong id="dropzoneNLabel">Klik untuk pilih file — Sisi Utara</strong></div>
-            <div style="margin-top:4px;font-size:12px;">.txt/.csv hasil OmniPC</div>
-          </div>
-          <input type="file" id="fileInputN" accept=".txt,.csv">
-          <div class="upload-status" id="pendingFileStatusN"></div>
+
+      <div id="singleUploadMode">
+        <div class="grid-settings" style="margin-bottom:14px;max-width:340px;">
+          <div class="field"><label>Row</label><select id="rowSelect"></select></div>
+          <div class="field" id="tubeNoField"><label>No Tube</label><input type="number" id="tubeNoInput" placeholder="misal: 1"></div>
         </div>
-        <div>
-          <div class="dropzone" id="dropzoneS">
-            <div><strong id="dropzoneSLabel">Klik untuk pilih file — Sisi Selatan</strong></div>
-            <div style="margin-top:4px;font-size:12px;">.txt/.csv hasil OmniPC</div>
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;margin-bottom:14px;">
+          <input type="checkbox" id="isRiserInput"> Ini untuk tube Riser (No Tube diabaikan)
+        </label>
+        <div class="summary-note" style="margin-top:-6px;margin-bottom:14px;">Isi salah satu kotak saja, dua-duanya sekaligus, atau kosongkan yang tidak ada datanya — lalu klik Submit satu kali.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <div class="dropzone" id="dropzoneN">
+              <div><strong id="dropzoneNLabel">Klik untuk pilih file — Sisi Utara</strong></div>
+              <div style="margin-top:4px;font-size:12px;">.txt/.csv hasil OmniPC</div>
+            </div>
+            <input type="file" id="fileInputN" accept=".txt,.csv">
+            <div class="upload-status" id="pendingFileStatusN"></div>
           </div>
-          <input type="file" id="fileInputS" accept=".txt,.csv">
-          <div class="upload-status" id="pendingFileStatusS"></div>
+          <div>
+            <div class="dropzone" id="dropzoneS">
+              <div><strong id="dropzoneSLabel">Klik untuk pilih file — Sisi Selatan</strong></div>
+              <div style="margin-top:4px;font-size:12px;">.txt/.csv hasil OmniPC</div>
+            </div>
+            <input type="file" id="fileInputS" accept=".txt,.csv">
+            <div class="upload-status" id="pendingFileStatusS"></div>
+          </div>
         </div>
+        <div class="btn-row"><button class="btn" id="submitBtn" disabled>Submit / Tambah ke Tabel</button></div>
+        <div class="upload-status" id="uploadStatus"></div>
       </div>
-      <div class="btn-row"><button class="btn" id="submitBtn" disabled>Submit / Tambah ke Tabel</button></div>
-      <div class="upload-status" id="uploadStatus"></div>
+
+      <div id="bulkUploadMode" style="display:none;">
+        <div class="summary-note" style="margin-top:0;margin-bottom:14px;">Row &amp; No Tube dibaca otomatis dari tiap file (metadata/nama file) — pastikan Row tujuannya sudah disiapkan di Langkah 2. Mode ini khusus tube bernomor biasa (bukan Riser — upload Riser tetap lewat tab "Satu-satu").</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <div class="dropzone" id="bulkDropzoneN">
+              <div><strong id="bulkDropzoneNLabel">Klik / drop banyak file — Sisi Utara</strong></div>
+              <div style="margin-top:4px;font-size:12px;">Bisa pilih banyak file .txt/.csv sekaligus</div>
+            </div>
+            <input type="file" id="bulkFileInputN" accept=".txt,.csv" multiple style="display:none;">
+          </div>
+          <div>
+            <div class="dropzone" id="bulkDropzoneS">
+              <div><strong id="bulkDropzoneSLabel">Klik / drop banyak file — Sisi Selatan</strong></div>
+              <div style="margin-top:4px;font-size:12px;">Bisa pilih banyak file .txt/.csv sekaligus</div>
+            </div>
+            <input type="file" id="bulkFileInputS" accept=".txt,.csv" multiple style="display:none;">
+          </div>
+        </div>
+        <div class="table-wrap" id="bulkFileListWrap" style="max-height:340px;margin-top:14px;display:none;"><table id="bulkFileListTable"></table></div>
+        <div class="btn-row">
+          <button class="btn" id="bulkSubmitBtn" disabled>Submit Semua</button>
+          <button class="btn secondary" id="bulkClearBtn" style="display:none;">Kosongkan Daftar</button>
+        </div>
+        <div class="upload-status" id="bulkUploadStatus"></div>
+      </div>
     </div>
 
     <div id="resultsSection" style="display:none;">
@@ -726,6 +759,7 @@
     // an upload) instead of silently jumping back to the first option.
     if (rows.some(r => r.id === prevValue)) sel.value = prevValue;
     updateSideInputLabels();
+    updateBulkDropzoneLabels();
   }
 
   // Sisi Utara/Selatan is only accurate when tube No.1 runs West-East. If the
@@ -805,6 +839,130 @@
   }
   setupDropzone('N');
   setupDropzone('S');
+
+  // ---------- Upload mode tabs ----------
+  document.querySelectorAll('#uploadModeTabs .tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#uploadModeTabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const mode = tab.getAttribute('data-mode');
+      document.getElementById('singleUploadMode').style.display = mode === 'single' ? 'block' : 'none';
+      document.getElementById('bulkUploadMode').style.display = mode === 'bulk' ? 'block' : 'none';
+      if (mode === 'bulk') updateBulkDropzoneLabels();
+    });
+  });
+
+  // ---------- Bulk upload (per side) ----------
+  let bulkEntries = []; // [{id, file, side, rowLabel, tubeNo, rowMatch, status}]
+  let bulkIdCounter = 0;
+
+  function updateBulkDropzoneLabels() {
+    const row = rows[0];
+    const tube1Dir = row ? (row.tube1_direction || 'W') : 'W';
+    document.getElementById('bulkDropzoneNLabel').textContent = 'Klik / drop banyak file — Sisi ' + DIR_LABEL_ID[sideActualDir(tube1Dir, 'N')];
+    document.getElementById('bulkDropzoneSLabel').textContent = 'Klik / drop banyak file — Sisi ' + DIR_LABEL_ID[sideActualDir(tube1Dir, 'S')];
+  }
+
+  function setupBulkDropzone(side) {
+    const dropzone = document.getElementById('bulkDropzone' + side);
+    const fileInput = document.getElementById('bulkFileInput' + side);
+    dropzone.addEventListener('click', () => fileInput.click());
+    ['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+    async function handleFiles(fileList) {
+      for (const file of Array.from(fileList)) {
+        const entry = { id: 'b' + (bulkIdCounter++), file, side, rowLabel: null, tubeNo: null, rowMatch: null, status: 'Membaca...' };
+        bulkEntries.push(entry);
+        renderBulkFileList();
+        const identity = await parseIdentityFromFile(file);
+        if (identity) {
+          entry.rowLabel = identity.rowLabel;
+          entry.tubeNo = identity.tubeNo;
+          entry.rowMatch = rows.find(r => r.label === identity.rowLabel) || null;
+          entry.status = entry.rowMatch ? 'Siap' : 'Row "' + identity.rowLabel + '" belum disiapkan di Langkah 2';
+        } else {
+          entry.status = 'Tidak terbaca — Row/No Tube tidak dikenali dari file ini';
+        }
+        renderBulkFileList();
+      }
+    }
+    dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+    fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
+  }
+  setupBulkDropzone('N');
+  setupBulkDropzone('S');
+
+  function renderBulkFileList() {
+    const wrap = document.getElementById('bulkFileListWrap');
+    const table = document.getElementById('bulkFileListTable');
+    const clearBtn = document.getElementById('bulkClearBtn');
+    const submitAllBtn = document.getElementById('bulkSubmitBtn');
+    if (bulkEntries.length === 0) {
+      wrap.style.display = 'none';
+      clearBtn.style.display = 'none';
+      submitAllBtn.disabled = true;
+      return;
+    }
+    wrap.style.display = 'block';
+    clearBtn.style.display = 'inline-block';
+    submitAllBtn.disabled = bulkEntries.every(e => !e.rowMatch);
+
+    let html = '<thead><tr><th>File</th><th>Sisi</th><th>Row</th><th>No Tube</th><th>Status</th><th></th></tr></thead><tbody>';
+    bulkEntries.forEach(e => {
+      const sideLabel = e.side === 'S' ? 'Selatan/Timur' : 'Utara/Barat';
+      html += `<tr>
+        <td style="text-align:left;font-size:11.5px;">${escapeHtml(e.file.name)}</td>
+        <td>${sideLabel}</td>
+        <td>${e.rowLabel ? escapeHtml(e.rowLabel) : '-'}</td>
+        <td>${e.tubeNo || '-'}</td>
+        <td style="text-align:left;font-size:11.5px;color:${e.rowMatch ? 'var(--rB1)' : 'var(--rC)'};">${escapeHtml(e.status)}</td>
+        <td><button class="bulkRemoveBtn" data-id="${e.id}" style="background:none;border:none;color:var(--rC);cursor:pointer;font-size:11px;font-family:var(--font-mono);">Hapus</button></td>
+      </tr>`;
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+    table.querySelectorAll('.bulkRemoveBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        bulkEntries = bulkEntries.filter(e => e.id !== btn.getAttribute('data-id'));
+        renderBulkFileList();
+      });
+    });
+  }
+
+  document.getElementById('bulkClearBtn').addEventListener('click', () => {
+    bulkEntries = [];
+    renderBulkFileList();
+  });
+
+  document.getElementById('bulkSubmitBtn').addEventListener('click', async () => {
+    const submitAllBtn = document.getElementById('bulkSubmitBtn');
+    const statusEl = document.getElementById('bulkUploadStatus');
+    const toUpload = bulkEntries.filter(e => e.rowMatch);
+    if (toUpload.length === 0) return;
+    submitAllBtn.disabled = true;
+    let done = 0;
+    for (const e of toUpload) {
+      statusEl.textContent = `Mengupload ${done + 1}/${toUpload.length} — ${e.file.name}...`;
+      try {
+        const form = new FormData();
+        form.append('file', e.file);
+        form.append('row_id', e.rowMatch.id);
+        form.append('side', e.side);
+        form.append('tube_no', e.tubeNo);
+        await api('/tubes', { method: 'POST', body: form });
+        e.status = 'Selesai ✓';
+      } catch (err) {
+        e.status = 'Gagal: ' + err.message;
+      }
+      done++;
+      renderBulkFileList();
+    }
+    statusEl.textContent = `Selesai — ${done} file diproses.`;
+    setTimeout(() => { statusEl.textContent = ''; }, 4000);
+    bulkEntries = bulkEntries.filter(e => e.status !== 'Selesai ✓');
+    renderBulkFileList();
+    await refreshAll();
+  });
 
   submitBtn.addEventListener('click', async () => {
     if ((!pendingFileN && !pendingFileS) || !currentPlant) return;
