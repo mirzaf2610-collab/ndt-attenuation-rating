@@ -165,8 +165,11 @@
         <span style="background:var(--rC-bg);color:var(--rC);"><span class="dot" style="background:var(--rC);"></span>C: 0 – nilai B2</span>
         <span style="background:var(--rNT-bg);color:var(--rNT);"><span class="dot" style="background:var(--rNT);"></span>NT: tidak ada data</span>
       </div>
-      <div class="btn-row"><button class="btn secondary" id="saveThresholdsBtn">Simpan Kriteria</button></div>
-      <div class="summary-note">Kriteria ini berlaku untuk seluruh Row di pabrik yang sedang dipilih.</div>
+      <div class="btn-row">
+        <button class="btn secondary" id="saveThresholdsBtn">Simpan Kriteria</button>
+        <button class="btn secondary" id="recomputeBtn">Hitung Ulang Semua Data dengan Kriteria Ini</button>
+      </div>
+      <div class="summary-note">Kriteria ini berlaku untuk seluruh Row di pabrik yang sedang dipilih. Data yang sudah pernah diupload <b>tidak otomatis</b> ikut berubah kalau kriteria diganti — klik "Hitung Ulang" untuk menerapkan kriteria terbaru ke semua data yang sudah ada (tanpa perlu upload ulang file).</div>
     </div>
 
     <div class="card">
@@ -654,6 +657,23 @@
     const idx = plants.findIndex(p => p.id === updated.id);
     if (idx >= 0) plants[idx] = updated;
     await refreshAll();
+  });
+
+  document.getElementById('recomputeBtn').addEventListener('click', async () => {
+    if (!currentPlant) return;
+    if (!confirm('Hitung ulang persentase & rating SEMUA tube di pabrik ini pakai kriteria yang tersimpan sekarang? Data mentah tidak berubah, cuma hasil hitungannya yang diperbarui.')) return;
+    const btn = document.getElementById('recomputeBtn');
+    btn.disabled = true;
+    btn.textContent = 'Menghitung ulang...';
+    try {
+      const result = await api('/plants/' + currentPlant.id + '/recompute', { method: 'POST' });
+      alert('Selesai — ' + result.updated + ' dari ' + result.total + ' tube berhasil dihitung ulang.');
+      await refreshAll();
+    } catch (err) {
+      alert('Gagal: ' + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = 'Hitung Ulang Semua Data dengan Kriteria Ini';
   });
 
   // ---------- Step 2: Setup Row & Riser ----------
